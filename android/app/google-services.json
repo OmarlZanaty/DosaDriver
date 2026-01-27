@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1056710019958",
+    "project_id": "dosadriver",
+    "storage_bucket": "dosadriver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1056710019958:android:dbd3a625fc120b110e4857",
+        "android_client_info": {
+          "package_name": "com.almobarmg.dosadriver_captain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBATFKIAAcUWfB48SG8d3gU_D8cybbk9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1056710019958:android:ee9032275de499220e4857",
+        "android_client_info": {
+          "package_name": "com.almobramg.dosadriver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBATFKIAAcUWfB48SG8d3gU_D8cybbk9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

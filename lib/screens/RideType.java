@@ -1,0 +1,1 @@
+enum RideType { premium, economy, scooter, fairValue }
