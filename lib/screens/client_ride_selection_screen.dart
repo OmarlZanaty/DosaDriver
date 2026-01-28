@@ -22,9 +22,11 @@ import 'client_ride_request_screen.dart';
 import 'client_tracking_screen_new.dart';
 
 enum RideType {
-  dosaPremium,
-  dosaEconomy,
-  dosaScooter,
+  
+dosaFairValue,
+dosaPremium,
+dosaEconomy,
+dosaScooter,
 }
 
 
@@ -90,13 +92,15 @@ class _ClientRideSelectionScreenState extends State<ClientRideSelectionScreen> {
 
   String _rideTypeKey(RideType type) {
     switch (type) {
-      case RideType.dosaPremium:
-        return 'premium';
-      case RideType.dosaEconomy:
-        return 'economic';
-      case RideType.dosaScooter:
-        return 'scooter';
-    }
+         case RideType.dosaFairValue:
+      return 'fair_value';
+    case RideType.dosaPremium:
+        case RideType.dosaPremium:
+      return 'premium';
+    case RideType.dosaEconomy:
+      return 'economic';
+    case RideType.dosaScooter:
+      return 'scooter';;
   }
 
   Future<void> _fetchAllPricing() async {
