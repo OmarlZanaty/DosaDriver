@@ -97,14 +97,22 @@ class RideApi {
       'destinationLat': destinationLat,
       'destinationLng': destinationLng,
 
-      'rideType': rideType,
-      'distanceKm': distanceKm,
-      'durationMin': durationMin,
-      if (price != null) 'price': price,
-      if (riderPhone != null && riderPhone.trim().isNotEmpty)
-        'riderPhone': riderPhone.trim(),
-    };
-
+      ''rideType': rideType,
+    'distanceKm': distanceKm,
+    'durationMin': durationMin,
+    if (riderPhone != null && riderPhone.trim().isNotEmpty)
+      '  'riderPhone': riderPhone.trim(),
+    }
+    
+        // Set price or suggested fare based on ride type
+    if (price != null) {
+      if (rideType == 'fair_value') {
+        body['suggestedFare'] = price;
+      } else {
+        body['price'] = price;
+      
+    
+;
 
     final res = await _client.request('POST', '/rides', jsonBody: body);
 
