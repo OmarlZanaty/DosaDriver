@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AppConfig {
+  key       String   @id
+  version   Int      @default(1)
+  data      Json
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  firebaseUid String   @unique
+  phone       String?
+  name        String?
+  role        UserRole @default(RIDER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pushToken   String?
+
+  captainRides Ride[]        @relation("RideCaptain")
+  riderRides   Ride[]        @relation("RideRider")
+  txAsCaptain  Transaction[] @relation("TxCaptain")
+  txAsRider    Transaction[] @relation("TxRider")
+  payouts      Payout[]
+
+  @@index([phone])
+  @@index([role])
+}
+
+model Ride {
+  id           Int        @id @default(autoincrement())
+  status       RideStatus @default(REQUESTED)
+  riderId      Int
+  captainId    Int?
+  pickupLat    Float
+  pickupLng    Float
+  pickupAddr   String?
+  dropLat      Float
+  dropLng      Float
+  dropAddr     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  stateVersion Int        @default(0)
+  type         RideType   @default(FAIR_VALUE)
+  suggestedFare Float?
+
+  // Finance fields
+  distanceKm       Float?
+  durationSec      Int?
+  finalFare        Float?
+  commissionRate   Float?
+  commissionAmount Float?
+  captainEarning   Float?
+  paymentMethod    PaymentMethod?
+  paidAt           DateTime?
+
+  // Transfer payment fields
+  transferProofUrl    String?
+  transferConfirmedBy String? // captain uid who confirmed
+  transferConfirmedAt DateTime?
+
+  captain      User?  @relation("RideCaptain", fields: [captainId], references: [id])
+  rider        User   @relation("RideRider", fields: [riderId], references: [id])
+  transactions Transaction[]
+
+  @@index([status])
+  @@index([riderId])
+  @@index([captainId])
+  @@index([paidAt])
+  @@index([riderId, status])
+  @@index([captainId, status])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  RIDER
+  CAPTAIN
+  ADMIN
+}
+
+enum RideType {
+  FAIR_VALUE
+  PREMIUM
+  CUTE_CAR
+  SCOOTER
+}
+
+enum RideStatus {
+  REQUESTED
+  ACCEPTED
+  ARRIVED
+  STARTED
+  COMPLETED
+  CANCELED
+}
+
+enum DashboardRole {
+  SUPER_ADMIN
+  DASHBOARD_USER
+}
+
+model DashboardUser {
+  id          Int           @id @default(autoincrement())
+  firebaseUid String        @unique
+  email       String        @unique
+  name        String?
+  role        DashboardRole @default(DASHBOARD_USER)
+  isActive    Boolean       @default(true)
+  permissions DashboardPermission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model DashboardPermission {
+  id              Int    @id @default(autoincrement())
+  dashboardUserId Int
+  key             String
+  dashboardUser   DashboardUser @relation(fields: [dashboardUserId], references: [id], onDelete: Cascade)
+
+  @@unique([dashboardUserId, key])
+  @@index([key])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  WALLET
+  INSTAPAY
+  VODAFONE_CASH
+}
+
+enum TxType {
+  RIDE_FARE
+  PLATFORM_COMMISSION
+  CAPTAIN_EARNING
+  PAYOUT
+  BONUS
+  PENALTY
+  REFUND
+  CASH_REMIT
+}
+
+enum TxStatus {
+  PENDING
+  POSTED
+  VOID
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+}
+
+enum PayoutMethod {
+  BANK
+  VODAFONE_CASH
+  INSTAPAY
+  MANUAL
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  type      TxType
+  status    TxStatus @default(POSTED)
+  amount    Float
+  currency  String   @default("EGP")
+  rideId    Int?
+  captainId Int?
+  riderId   Int?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  ride    Ride? @relation(fields: [rideId], references: [id], onDelete: SetNull)
+  captain User? @relation("TxCaptain", fields: [captainId], references: [id], onDelete: SetNull)
+  rider   User? @relation("TxRider", fields: [riderId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([captainId])
+  @@index([rideId])
+  @@index([createdAt])
+  @@index([riderId])
+}
+
+model Payout {
+  id          Int          @id @default(autoincrement())
+  captainId   Int
+  amount      Float
+  currency    String       @default("EGP")
+  method      PayoutMethod @default(MANUAL)
+  status      PayoutStatus @default(PENDING)
+  reference   String?
+  proofUrl    String?
+  note        String?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+  captain     User @relation(fields: [captainId], references: [id], onDelete: Cascade)
+
+  @@index([captainId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model FirestoreSyncQueue {
+  id        Int      @id @default(autoincrement())
+  rideId    Int
+  status    String
+  attempts  Int      @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+  nextRetry DateTime @default(now())
+
+  @@index([nextRetry])
+  @@index([rideId])
+}

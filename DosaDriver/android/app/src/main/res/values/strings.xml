@@ -1,0 +1,4 @@
+<resources>
+    <!-- Google Maps API key – override via gradle property or build config -->
+    <string name="google_maps_key">AIzaSyC7NK0DvIa47HVqJdiy6sxymGeawr6it8Y</string>
+</resources>

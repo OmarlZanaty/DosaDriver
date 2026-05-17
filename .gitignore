@@ -1,0 +1,71 @@
+# ─── Environment ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Firebase service account keys ─────────────────────────────────
+serviceAccount*.json
+**/serviceAccount*.json
+
+# ─── Node / NestJS Backend ─────────────────────────────────────────
+Backend/node_modules/
+Backend/dist/
+Backend/.cache/
+Backend/coverage/
+Backend/*.log
+Backend/generated/
+
+# ─── Flutter (Rider) ───────────────────────────────────────────────
+DosaDriver/.dart_tool/
+DosaDriver/.packages
+DosaDriver/build/
+DosaDriver/.flutter-plugins
+DosaDriver/.flutter-plugins-dependencies
+DosaDriver/ios/Pods/
+DosaDriver/ios/.symlinks/
+DosaDriver/android/.gradle/
+DosaDriver/android/local.properties
+DosaDriver/android/key.properties
+DosaDriver/android/app/google-services.json
+DosaDriver/google-services.json
+
+# ─── Flutter (Captain) ─────────────────────────────────────────────
+DosaDriver Captain/.dart_tool/
+DosaDriver Captain/.packages
+DosaDriver Captain/build/
+DosaDriver Captain/.flutter-plugins
+DosaDriver Captain/.flutter-plugins-dependencies
+DosaDriver Captain/ios/Pods/
+DosaDriver Captain/ios/.symlinks/
+DosaDriver Captain/android/.gradle/
+DosaDriver Captain/android/local.properties
+DosaDriver Captain/android/key.properties
+DosaDriver Captain/android/app/google-services.json
+DosaDriver Captain/google-services.json
+
+# ─── Admin Dashboard (Flutter) ─────────────────────────────────────
+Admin Dashboard/.dart_tool/
+Admin Dashboard/.packages
+Admin Dashboard/build/
+Admin Dashboard/.flutter-plugins
+Admin Dashboard/.flutter-plugins-dependencies
+Admin Dashboard/ios/Pods/
+Admin Dashboard/ios/.symlinks/
+Admin Dashboard/android/.gradle/
+Admin Dashboard/android/local.properties
+Admin Dashboard/android/key.properties
+Admin Dashboard/android/app/google-services.json
+Admin Dashboard/google-services.json
+
+# ─── IDE / OS ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Logs ──────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
