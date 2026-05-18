@@ -6,6 +6,7 @@ import '../core/theme/app_text_styles.dart';
 import '../core/localization/app_strings.dart';
 import 'captain_home_screen.dart';
 import 'captain_profile_completion_screen.dart';
+import 'captain_signin_screen.dart';
 import 'captain_waiting_approval_screen.dart';
 import 'otp_verify_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -92,9 +93,13 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         .doc(uid)
         .get();
 
+    if (!mounted) return;
+
     if (!doc.exists) {
-      // Safety fallback
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CaptainSignInScreen()),
+      );
       return;
     }
 

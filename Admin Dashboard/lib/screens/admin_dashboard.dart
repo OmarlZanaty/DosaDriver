@@ -298,7 +298,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                       const SizedBox(width: 12),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          showDialog<void>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('الإشعارات'),
+                              content: const Text('لا توجد إشعارات جديدة حالياً.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('حسناً'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                         icon: Stack(
                           children: const [
                             Icon(Icons.notifications_none, size: 28),

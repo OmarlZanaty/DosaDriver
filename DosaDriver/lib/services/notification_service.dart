@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'backend_api.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -14,6 +16,7 @@ class NotificationService {
   static const String _channelDescription = 'Ride notifications';
 
   bool _initialized = false;
+  final BackendApi _api = BackendApi();
 
   Future<void> init() async {
     if (_initialized) return;
@@ -25,12 +28,35 @@ class NotificationService {
         InitializationSettings(android: androidSettings);
 
     await _notifications.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
     await _createAndroidChannel();
 
+    await _syncPushToken();
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      _registerToken(token);
+    });
+
     _initialized = true;
+  }
+
+  Future<void> _syncPushToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      await _registerToken(token);
+    } catch (e) {
+      debugPrint('FCM token sync failed: $e');
+    }
+  }
+
+  Future<void> _registerToken(String? token) async {
+    if (token == null || token.isEmpty) return;
+    try {
+      await _api.registerPushToken(token);
+    } catch (e) {
+      debugPrint('Push register failed: $e');
+    }
   }
 
   Future<void> _createAndroidChannel() async {
@@ -56,7 +82,7 @@ class NotificationService {
   }
 
   Future<void> show(String? title, String? body, Map<String, dynamic>? data) async {
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
       channelDescription: _channelDescription,
@@ -64,14 +90,20 @@ class NotificationService {
       priority: Priority.high,
     );
 
-    final NotificationDetails details =
+    const NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
     final payload = data?['rideId']?.toString() ?? data?['ride_id']?.toString() ?? '';
-    await _notifications.show(_notifId++, title, body, details, payload: payload);
+    await _notifications.show(
+      id: _notifId++,
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
   }
 
   Future<String?> getToken() async {
-    return await FirebaseMessaging.instance.getToken();
+    return FirebaseMessaging.instance.getToken();
   }
 }

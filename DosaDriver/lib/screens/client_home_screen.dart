@@ -29,7 +29,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // FIX: Use addPostFrameCallback — prevents Navigator call during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initLocation();
       _checkActiveRide();
@@ -55,7 +54,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         _center = _myLocation!;
       });
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_center, 15));
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر تحديد الموقع: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _checkActiveRide() async {
@@ -66,7 +71,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           builder: (_) => ClientActiveRideScreen(rideId: ride['id'].toString()),
         ));
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر التحقق من الرحلة النشطة: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -155,9 +166,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
             builder: (ctx, snap) {
-              final name = snap.hasData && snap.data!.exists
-                  ? (snap.data!.data() as Map<String, dynamic>?)?['name'] ?? 'مستخدم'
-                  : 'مستخدم';
+              final data = snap.hasData && snap.data!.exists
+                  ? snap.data!.data() as Map<String, dynamic>?
+                  : null;
+              final name = data?['name']?.toString() ?? 'مستخدم';
               return Align(alignment: Alignment.centerRight,
                   child: Text('مرحباً $name 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)));
             },

@@ -1,11 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'backend_api.dart';
+import 'notification_service.dart';
 
 /// FIX: Phone+password auth, no OTP, persistent login via Firebase SDK
 class ClientAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final BackendApi _api = BackendApi();
 
   // ─── REGISTER ───────────────────────────────────────────────────────────────
   Future<void> register({
@@ -34,6 +37,12 @@ class ClientAuthService {
       await cred.user?.delete();
       rethrow;
     }
+
+    try {
+      await _api.patch('/v1/users/me', body: {'name': name, 'phone': phone});
+    } catch (_) {
+      // Postgres row is created on first authenticated API call if this fails
+    }
   }
 
   // ─── LOGIN ──────────────────────────────────────────────────────────────────
@@ -42,6 +51,7 @@ class ClientAuthService {
       await _auth.signInWithEmailAndPassword(email: _toEmail(phone), password: password);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userRole', 'RIDER');
+      await NotificationService().init();
     } on FirebaseAuthException catch (e) {
       throw Exception(_mapError(e.code));
     }
@@ -58,6 +68,7 @@ class ClientAuthService {
   Future<void> updateProfile({required String name, required String phone}) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
+    await _api.patch('/v1/users/me', body: {'name': name, 'phone': phone});
     await _db.collection('users').doc(uid).update({
       'name': name, 'phone': phone, 'updatedAt': FieldValue.serverTimestamp(),
     });

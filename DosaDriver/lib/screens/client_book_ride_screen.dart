@@ -76,7 +76,13 @@ class _ClientBookRideScreenState extends State<ClientBookRideScreen> {
       if (!mounted) return;
       setState(() { _pickupLatLng = LatLng(pos.latitude, pos.longitude); _pickupCtrl.text = 'موقعي الحالي'; });
       _rebuild();
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر تحديد الموقع: $e')),
+        );
+      }
+    }
   }
 
   Future<String> _reverseGeocode(LatLng pos) async {
@@ -232,6 +238,7 @@ class _ClientBookRideScreenState extends State<ClientBookRideScreen> {
         return;
       }
       final addr = await _reverseGeocode(latLng);
+      if (!mounted) return;
       setState(() {
         if (isPickup) { _pickupLatLng = latLng; _pickupCtrl.text = addr; }
         else          { _destLatLng   = latLng; _destCtrl.text   = addr; }
@@ -291,6 +298,7 @@ class _ClientBookRideScreenState extends State<ClientBookRideScreen> {
             onMapCreated: (c) { _mapController = c; _rebuild(); },
             onTap: (latlng) async {
               final addr = await _reverseGeocode(latlng);
+              if (!mounted) return;
               setState(() { _destLatLng = latlng; _destCtrl.text = addr; });
               _rebuild();
             },

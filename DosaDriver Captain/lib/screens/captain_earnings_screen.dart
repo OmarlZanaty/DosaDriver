@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../core/localization/app_strings.dart';
+import '../services/backend_api.dart';
+import '../services/captain_ride_api.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import 'captain_home_screen.dart';
@@ -41,71 +41,21 @@ class _CaptainEarningsScreenState extends State<CaptainEarningsScreen> {
     _loadEarnings();
   }
 
-  /// 🔥 Load real earnings from Firestore
   Future<void> _loadEarnings() async {
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final firestore = FirebaseFirestore.instance;
-
-      // =========================
-      // DRIVER WALLET (SOURCE OF TRUTH)
-      // =========================
-      final walletDoc =
-      await firestore.collection('driver_wallet').doc(uid).get();
-
-      if (walletDoc.exists) {
-        final data = walletDoc.data()!;
-
-        _walletBalance =
-            (data['availableBalance'] as num?)?.toDouble() ?? 0.0;
-
-        _pendingCommission =
-            (data['pendingCommission'] as num?)?.toDouble() ?? 0.0;
-
-        _totalGross =
-            (data['totalGross'] as num?)?.toDouble() ?? 0.0;
-
-        _totalTrips =
-            (data['totalTrips'] as num?)?.toInt() ?? 0;
-      }
-
-      // =========================
-      // WEEKLY NET EARNINGS (CHART)
-      // =========================
-      final now = DateTime.now();
-      final startOfWeek = now.subtract(
-        Duration(days: now.weekday % 7),
-      );
-
-
-      final earningsSnap = await firestore
-          .collection('driver_earnings')
-          .where('driverId', isEqualTo: uid)
-          .where(
-        'createdAt',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek),
-      )
-          .get();
-
-      _weeklyEarnings = 0.0;
-      _dailyEarnings = List.filled(7, 0.0);
-
-      for (final doc in earningsSnap.docs) {
-        final data = doc.data();
-
-        final netAmount =
-            (data['netAmount'] as num?)?.toDouble() ?? 0.0;
-
-        final createdAt =
-        (data['createdAt'] as Timestamp).toDate();
-
-        final dayIndex = createdAt.weekday % 7;
-
-        _weeklyEarnings += netAmount;
-        _dailyEarnings[dayIndex] += netAmount;
-      }
+      final res = await CaptainRideApi(BackendApi()).getEarnings();
+      _walletBalance = (res['availableBalance'] as num?)?.toDouble() ?? 0.0;
+      _pendingCommission = (res['pendingPayout'] as num?)?.toDouble() ?? 0.0;
+      _totalGross = (res['totalGross'] as num?)?.toDouble() ?? 0.0;
+      _totalTrips = (res['totalTrips'] as num?)?.toInt() ?? 0;
+      _weeklyEarnings = (res['weeklyEarnings'] as num?)?.toDouble() ?? 0.0;
+      final daily = (res['dailyEarnings'] as List?) ?? [];
+      _dailyEarnings = List.generate(7, (i) {
+        if (i < daily.length) return (daily[i] as num).toDouble();
+        return 0.0;
+      });
     } catch (e) {
-      debugPrint('❌ Earnings load error: $e');
+      debugPrint('Earnings load error: $e');
     }
 
     if (mounted) {
@@ -245,16 +195,23 @@ class _CaptainEarningsScreenState extends State<CaptainEarningsScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'طلب السحب متاح عبر الإدارة — قريباً داخل التطبيق',
+                        ),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                   ),
-                  child:  Text(
+                  child: Text(
                     AppStrings.withdraw(context),
                     style: const TextStyle(color: AppColors.white),
-                    ),
-
-                    ),
+                  ),
+                ),
               ],
             ),
           ),

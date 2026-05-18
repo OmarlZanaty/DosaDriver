@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/theme/app_colors.dart';
+import '../services/backend_api.dart';
+import '../services/client_ride_api.dart';
 import '../widgets/custom_widgets.dart';
 import 'client_home_screen.dart';
 
@@ -22,6 +23,7 @@ class _ClientRateRideScreenState extends State<ClientRateRideScreen> {
   int _rating = 5;
   final _commentCtrl = TextEditingController();
   bool _loading = false;
+  final _rideApi = ClientRideApi(BackendApi());
 
   @override
   void dispose() {
@@ -32,24 +34,11 @@ class _ClientRateRideScreenState extends State<ClientRateRideScreen> {
   Future<void> _submitRating() async {
     setState(() => _loading = true);
     try {
-      // Save rating to Firestore ride doc
-      await FirebaseFirestore.instance
-          .collection('rides')
-          .doc(widget.rideId)
-          .update({
-        'clientRating': _rating,
-        'clientComment': _commentCtrl.text.trim(),
-        'ratedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Also save to a ratings collection for analytics
-      await FirebaseFirestore.instance.collection('ride_ratings').add({
-        'rideId': widget.rideId,
-        'rating': _rating,
-        'comment': _commentCtrl.text.trim(),
-        'captainUid': widget.rideData['captainUid'],
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _rideApi.rateRide(
+        int.parse(widget.rideId),
+        rating: _rating,
+        comment: _commentCtrl.text.trim(),
+      );
 
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(

@@ -49,4 +49,15 @@ class ClientRideApi {
   Future<Map<String, dynamic>> getHistory({int page = 1, int limit = 20}) async {
     return _api.get('/v1/rides/history?page=$page&limit=$limit');
   }
+
+  Future<void> rateRide(int rideId, {required int rating, String? comment}) async {
+    await _api.post('/v1/rides/$rideId/rate', body: {
+      'rating': rating,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    });
+  }
+
+  Future<void> submitTransferProof(int rideId, String proofUrl) async {
+    await _api.post('/v1/rides/$rideId/transfer-proof', body: {'proofUrl': proofUrl});
+  }
 }

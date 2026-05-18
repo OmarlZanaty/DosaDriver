@@ -26,10 +26,17 @@ class _CaptainCreateProfileScreenState extends State<CaptainCreateProfileScreen>
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const CaptainWaitingApprovalScreen()),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
   }
 
   @override

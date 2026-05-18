@@ -42,6 +42,23 @@ class BackendApi {
     return _parse(res);
   }
 
+  Future<Map<String, dynamic>> patch(String path, {Map<String, dynamic>? body}) async {
+    final token = await _getToken();
+    final res = await http
+        .patch(
+          Uri.parse('$baseUrl$path'),
+          headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+          body: jsonEncode(body ?? {}),
+        )
+        .timeout(_timeout);
+    return _parse(res);
+  }
+
+  Future<void> registerPushToken(String token) async {
+    if (token.isEmpty) return;
+    await post('/v1/notifications/register', body: {'token': token});
+  }
+
   Map<String, dynamic> _parse(http.Response res) {
     final text = res.body.isEmpty ? '{}' : res.body;
     Map<String, dynamic> json;

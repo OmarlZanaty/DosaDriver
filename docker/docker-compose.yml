@@ -39,8 +39,8 @@ services:
   # ── Backend API ──────────────────────────────────────────────────────────────
   api:
     build:
-      context: ../backend-fixed
-      dockerfile: ../docker/Dockerfile
+      context: ../Backend
+      dockerfile: ../Backend/Dockerfile
     container_name: dosadriver-api
     restart: unless-stopped
     ports:

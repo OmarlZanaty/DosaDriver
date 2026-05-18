@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1056710019958",
+    "project_id": "dosadriver",
+    "storage_bucket": "dosadriver.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1056710019958:android:CLIENT_APP_ID_HERE",
+        "android_client_info": {
+          "package_name": "com.dosadriver.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7NK0DvIa47HVqJdiy6sxymGeawr6it8Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

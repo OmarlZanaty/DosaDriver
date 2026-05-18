@@ -1,6 +1,8 @@
 import 'dart:developer';
 import 'dart:math' as math;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'backend_api.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -8,20 +10,20 @@ class NotificationService {
   NotificationService._internal();
 
   static final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
-  // ✅ CHANGE ID to force MIUI recreate channel
   static const String _channelId = 'default_channel_v2';
   static const String _channelName = 'Default v2';
   static const String _channelDescription = 'General notifications';
 
   bool _initialized = false;
+  final BackendApi _api = BackendApi();
 
   Future<void> init() async {
     if (_initialized) return;
 
     const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -33,7 +35,7 @@ class NotificationService {
     );
 
     const InitializationSettings initSettings =
-    InitializationSettings(android: androidSettings, iOS: iosSettings);
+        InitializationSettings(android: androidSettings, iOS: iosSettings);
 
     await _notifications.initialize(
       settings: initSettings,
@@ -42,11 +44,33 @@ class NotificationService {
 
     await _createAndroidChannel();
 
-    // ✅ request permission + log result
     final granted = await debugRequestAndroidPermission();
-    log('✅ Notification permission granted? $granted');
+    log('Notification permission granted? $granted');
+
+    await _syncPushToken();
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      _registerToken(token);
+    });
 
     _initialized = true;
+  }
+
+  Future<void> _syncPushToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      await _registerToken(token);
+    } catch (e) {
+      log('FCM token sync failed: $e');
+    }
+  }
+
+  Future<void> _registerToken(String? token) async {
+    if (token == null || token.isEmpty) return;
+    try {
+      await _api.registerPushToken(token);
+    } catch (e) {
+      log('Push register failed: $e');
+    }
   }
 
   Future<void> _createAndroidChannel() async {
@@ -65,14 +89,13 @@ class NotificationService {
   }
 
   Future<void> show(
-      String? title,
-      String? body,
-      Map<String, dynamic>? data,
-      ) async {
+    String? title,
+    String? body,
+    Map<String, dynamic>? data,
+  ) async {
     await init();
 
-    const AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       _channelId,
       _channelName,
       channelDescription: _channelDescription,
@@ -85,10 +108,8 @@ class NotificationService {
     const NotificationDetails details = NotificationDetails(android: androidDetails);
 
     final int uniqueId = (DateTime.now().millisecondsSinceEpoch +
-        math.Random().nextInt(999))
+            math.Random().nextInt(999))
         .remainder(100000000);
-
-    log('📣 Showing local notification id=$uniqueId title=$title');
 
     await _notifications.show(
       id: uniqueId,
@@ -99,7 +120,6 @@ class NotificationService {
     );
   }
 
-  // ✅ YOUR EDITED FUNCTION (kept)
   Future<bool> debugRequestAndroidPermission() async {
     final androidImpl = _notifications.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();

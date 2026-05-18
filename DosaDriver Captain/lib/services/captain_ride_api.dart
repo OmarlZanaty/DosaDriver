@@ -58,4 +58,8 @@ class CaptainRideApi {
     final res = await _api.get('/v1/captain/rides/history?page=$page&limit=$limit');
     return res;
   }
+
+  Future<Map<String, dynamic>> getEarnings() async {
+    return _api.get('/v1/captain/earnings');
+  }
 }

@@ -28,23 +28,42 @@ class _CreateAgencyScreenState extends State<CreateAgencyScreen> {
   }
 
   Future<void> createAgency() async {
+    final pct = int.tryParse(commission.text.trim());
+    if (name.text.trim().isEmpty || pct == null || pct < 0 || pct > 100) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى إدخال اسم الوكالة ونسبة عمولة صحيحة (0–100)')),
+      );
+      return;
+    }
+
     setState(() => loading = true);
 
-    final code = generateCode();
+    try {
+      final code = generateCode();
 
-    await FirebaseFirestore.instance.collection('agencies').add({
-      "name": name.text,
-      "phone": phone.text,
-      "email": email.text,
-      "referralCode": code,
-      "commissionPercent": int.parse(commission.text),
-      "status": "active",
-      "totalDrivers": 0,
-      "totalRevenue": 0,
-      "createdAt": FieldValue.serverTimestamp(),
-    });
+      await FirebaseFirestore.instance.collection('agencies').add({
+        'name': name.text.trim(),
+        'phone': phone.text.trim(),
+        'email': email.text.trim(),
+        'referralCode': code,
+        'commissionPercent': pct,
+        'status': 'active',
+        'totalDrivers': 0,
+        'totalRevenue': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل إنشاء الوكالة: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override

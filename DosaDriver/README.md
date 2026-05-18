@@ -198,4 +198,4 @@ Client rates → rating saved to Firestore            ✓
 | Version | 1.0.0+1 |
 | Backend | `https://dosadriver-api-1056710019958.me-central1.run.app` |
 | Firebase Project | `dosadriver` |
-| Maps API Key | `AIzaSyC7NK0DvIa47HVqJdiy6sxymGeawr6it8Y` |
+| Maps API Key | Set via `MAPS_API_KEY` gradle property or `--dart-define=MAPS_API_KEY=...` |

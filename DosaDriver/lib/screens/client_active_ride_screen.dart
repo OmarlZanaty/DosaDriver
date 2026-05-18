@@ -244,11 +244,9 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
       await ref.putFile(File(xfile.path));
       final url = await ref.getDownloadURL();
 
-      // Update Firestore ride doc with proof URL
-      await FirebaseFirestore.instance.collection('rides').doc(widget.rideId).update({
-        'transferProofUrl': url,
-      });
+      await _rideApi.submitTransferProof(int.parse(widget.rideId), url);
 
+      if (!mounted) return;
       setState(() => _proofUrl = url);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم رفع إيصال التحويل ✓'), backgroundColor: Colors.green));

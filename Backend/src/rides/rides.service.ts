@@ -3,7 +3,7 @@ import {
   Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RideStatus, UserRole, RideType, PaymentMethod, TxType } from '@prisma/client';
+import { RideStatus, UserRole, RideType, PaymentMethod, TxType, TxStatus, PayoutStatus } from '@prisma/client';
 import { FirestoreBridgeService } from '../firestore/firestore-bridge.service';
 import { NotificationService } from '../notifications/notification.service';
 
@@ -278,6 +278,112 @@ export class RidesService {
       create: { rideId, captainId: captain.id, state: 'expired' },
       update: { state: 'expired' },
     }).catch((e: any) => this.logger.warn('rideVisibility upsert expired: ' + (e?.message ?? '')));
+  }
+
+  // ─── RIDER: RATE COMPLETED RIDE ─────────────────────────────────────────────
+  async rateRide(rider: DbUser, rideId: number, rating: number, comment?: string) {
+    if (rider.role !== UserRole.RIDER) throw new ForbiddenException('Only RIDER');
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      throw new BadRequestException('التقييم يجب أن يكون بين 1 و 5');
+    }
+
+    const ride = await this.prisma.ride.findUnique({ where: { id: rideId } });
+    if (!ride) throw new NotFoundException('الرحلة غير موجودة');
+    if (ride.riderId !== rider.id) throw new ForbiddenException('NOT_YOUR_RIDE');
+    if (ride.status !== RideStatus.COMPLETED) {
+      throw new BadRequestException('يمكن التقييم بعد اكتمال الرحلة فقط');
+    }
+
+    let captainFirebaseUid: string | null = null;
+    if (ride.captainId) {
+      const captain = await this.prisma.user.findUnique({ where: { id: ride.captainId } });
+      captainFirebaseUid = captain?.firebaseUid ?? null;
+    }
+
+    await this.bridge.mirrorRideRating(rideId, rating, (comment ?? '').trim(), captainFirebaseUid);
+    return { ok: true, rideId, rating };
+  }
+
+  // ─── RIDER: SUBMIT TRANSFER PAYMENT PROOF ───────────────────────────────────
+  async submitTransferProof(rider: DbUser, rideId: number, proofUrl: string) {
+    if (rider.role !== UserRole.RIDER) throw new ForbiddenException('Only RIDER');
+    const url = (proofUrl ?? '').trim();
+    if (!url.startsWith('http')) throw new BadRequestException('رابط الإيصال غير صالح');
+
+    const ride = await this.prisma.ride.findUnique({ where: { id: rideId } });
+    if (!ride) throw new NotFoundException('الرحلة غير موجودة');
+    if (ride.riderId !== rider.id) throw new ForbiddenException('NOT_YOUR_RIDE');
+    if (![RideStatus.ACCEPTED, RideStatus.ARRIVED, RideStatus.STARTED].includes(ride.status)) {
+      throw new BadRequestException('لا يمكن رفع الإيصال في هذه الحالة');
+    }
+
+    const updated = await this.prisma.ride.update({
+      where: { id: rideId },
+      data: { transferProofUrl: url },
+    });
+    await this.bridge.safeUpsertRideMirror(updated);
+    return updated;
+  }
+
+  // ─── CAPTAIN: EARNINGS SUMMARY (Postgres source of truth) ───────────────────
+  async getCaptainEarnings(captain: DbUser) {
+    if (captain.role !== UserRole.CAPTAIN) throw new ForbiddenException('Only CAPTAIN');
+
+    const [earnedAgg, paidAgg, pendingAgg, completedTrips] = await Promise.all([
+      this.prisma.transaction.aggregate({
+        where: { captainId: captain.id, type: TxType.CAPTAIN_EARNING, status: TxStatus.POSTED },
+        _sum: { amount: true },
+      }),
+      this.prisma.payout.aggregate({
+        where: { captainId: captain.id, status: PayoutStatus.PAID },
+        _sum: { amount: true },
+      }),
+      this.prisma.payout.aggregate({
+        where: { captainId: captain.id, status: PayoutStatus.PENDING },
+        _sum: { amount: true },
+      }),
+      this.prisma.ride.count({
+        where: { captainId: captain.id, status: RideStatus.COMPLETED },
+      }),
+    ]);
+
+    const totalGross = earnedAgg._sum.amount ?? 0;
+    const paidOut = paidAgg._sum.amount ?? 0;
+    const pendingPayout = pendingAgg._sum.amount ?? 0;
+    const availableBalance = Math.max(0, Math.round((totalGross - paidOut - pendingPayout) * 100) / 100);
+
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekTx = await this.prisma.transaction.findMany({
+      where: {
+        captainId: captain.id,
+        type: TxType.CAPTAIN_EARNING,
+        status: TxStatus.POSTED,
+        createdAt: { gte: weekStart },
+      },
+      select: { amount: true, createdAt: true },
+    });
+
+    const dailyEarnings = Array.from({ length: 7 }, () => 0);
+    let weeklyEarnings = 0;
+    for (const tx of weekTx) {
+      const amt = tx.amount ?? 0;
+      weeklyEarnings += amt;
+      const dayIndex = tx.createdAt.getDay();
+      dailyEarnings[dayIndex] += amt;
+    }
+
+    return {
+      ok: true,
+      availableBalance,
+      pendingPayout,
+      totalGross,
+      totalTrips: completedTrips,
+      weeklyEarnings: Math.round(weeklyEarnings * 100) / 100,
+      dailyEarnings,
+    };
   }
 
   // ─── RIDE HISTORY ────────────────────────────────────────────────────────────

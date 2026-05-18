@@ -52,6 +52,29 @@ export class RidesController {
   }
 
   @Roles(UserRole.RIDER)
+  @Post('rides/:id/rate')
+  async rateRide(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    return this.ridesService.rateRide(req.dbUser, id, body.rating, body.comment);
+  }
+
+  @Roles(UserRole.RIDER)
+  @Post('rides/:id/transfer-proof')
+  async submitTransferProof(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { proofUrl: string },
+  ) {
+    return {
+      ok: true,
+      ride: await this.ridesService.submitTransferProof(req.dbUser, id, body.proofUrl),
+    };
+  }
+
+  @Roles(UserRole.RIDER)
   @Get('rides/history')
   async riderHistory(
     @Req() req: any,
@@ -72,6 +95,12 @@ export class RidesController {
   @Get('captain/rides/active')
   async getActiveRideForCaptain(@Req() req: any) {
     return { ok: true, ride: await this.ridesService.getActiveRideForCaptain(req.dbUser) ?? null };
+  }
+
+  @Roles(UserRole.CAPTAIN)
+  @Get('captain/earnings')
+  async captainEarnings(@Req() req: any) {
+    return this.ridesService.getCaptainEarnings(req.dbUser);
   }
 
   @Roles(UserRole.CAPTAIN)

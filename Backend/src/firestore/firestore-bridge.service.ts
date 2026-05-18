@@ -94,4 +94,28 @@ export class FirestoreBridgeService {
       },
     });
   }
+
+  async mirrorRideRating(
+    rideId: number,
+    rating: number,
+    comment: string,
+    captainFirebaseUid: string | null,
+  ): Promise<void> {
+    try {
+      const ratedAt = new Date().toISOString();
+      await this.firestore().collection('rides').doc(String(rideId)).set(
+        { clientRating: rating, clientComment: comment, ratedAt },
+        { merge: true },
+      );
+      await this.firestore().collection('ride_ratings').add({
+        rideId: String(rideId),
+        rating,
+        comment,
+        captainUid: captainFirebaseUid,
+        createdAt: ratedAt,
+      });
+    } catch (err: any) {
+      this.logger.error(`mirrorRideRating failed ride=${rideId}: ${err?.message}`);
+    }
+  }
 }

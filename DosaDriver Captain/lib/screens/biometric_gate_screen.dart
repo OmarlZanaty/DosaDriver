@@ -47,10 +47,10 @@ class _BiometricGateScreenState extends State<BiometricGateScreen>
       final supported = await _auth.isDeviceSupported();
 
       if (!canCheck || !supported) {
-        // If device has no biometrics, allow access
+        if (!mounted) return;
         setState(() {
-          _passed = true;
-          _error = null;
+          _passed = false;
+          _error = 'استخدم قفل الشاشة أو كلمة مرور الجهاز للمتابعة';
         });
         return;
       }
@@ -77,6 +77,10 @@ class _BiometricGateScreenState extends State<BiometricGateScreen>
     }
   }
 
+  Future<void> _unlockWithDeviceCredential() async {
+    await _runAuth();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_passed) return widget.child;
@@ -100,8 +104,13 @@ class _BiometricGateScreenState extends State<BiometricGateScreen>
                   Text(_error!, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _runAuth,
+                  onPressed: _checking ? null : _runAuth,
                   child: Text(_checking ? 'Checking...' : 'Try Again'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _checking ? null : _unlockWithDeviceCredential,
+                  child: const Text('Unlock with device PIN / password'),
                 ),
               ],
             ),

@@ -63,6 +63,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
       );
+      if (!mounted) return;
       setState(() => _editMode = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حفظ البيانات بنجاح ✓'), backgroundColor: AppColors.success),

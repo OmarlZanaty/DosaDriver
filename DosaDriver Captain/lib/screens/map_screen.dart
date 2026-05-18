@@ -56,6 +56,7 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
+    if (!mounted) return;
     setState(() => _verifiedCaptain = true);
   }
 
