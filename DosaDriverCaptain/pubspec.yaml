@@ -1,0 +1,66 @@
+name: DosaDriver_captain
+description: "DosaDriver Captain (Driver) App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  # UI
+  cupertino_icons: ^1.0.8
+
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^20.0.0
+
+  local_auth: ^2.2.0
+
+  # 🔥 Firebase Core
+  firebase_core: ^3.15.2
+
+
+  permission_handler: ^11.3.1
+
+  firebase_storage: ^12.3.4
+
+  url_launcher: ^6.3.0
+
+  image_picker: ^1.1.2
+
+  firebase_app_check: ^0.3.1
+
+  # 🔐 Authentication
+  firebase_auth: ^5.7.0
+
+  http: ^1.2.1   # ✅ ADD THIS
+
+  # ☁️ Firestore Database
+  cloud_firestore: ^5.6.12
+  shared_preferences: ^2.0.15
+  # 🗺 Google Maps
+  google_maps_flutter: ^2.9.0
+  google_maps_flutter_android: ^2.14.11
+
+  # 📍 Location Tracking
+  geolocator: ^12.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo.png
