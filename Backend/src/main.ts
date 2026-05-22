@@ -20,8 +20,17 @@ async function bootstrap() {
     'http://localhost:8080',
   ];
 
+  // Allow any localhost port for local development (Flutter web uses random ports)
+  const localhostPattern = /^http:\/\/localhost(:\d+)?$/;
+
   app.enableCors({
-    origin: [...defaultOrigins, ...allowedOrigins],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // non-browser / curl
+      if (localhostPattern.test(origin)) return callback(null, true);
+      const extra = [...defaultOrigins, ...allowedOrigins];
+      if (extra.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS blocked: ${origin}`));
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-email', 'x-admin-password'],
     credentials: true,
