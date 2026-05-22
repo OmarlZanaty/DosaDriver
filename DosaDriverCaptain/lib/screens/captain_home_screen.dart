@@ -770,6 +770,7 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
                     zoomControlsEnabled: false,
                     onMapCreated: (c) async {
                       _mapController = c;
+                      await _goToMyLocation();            // auto-center on captain's GPS
                       await _rebuildHeatFromVisibleRegion();
                     },
                     onCameraIdle: () async {
