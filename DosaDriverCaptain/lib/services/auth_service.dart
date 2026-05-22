@@ -30,15 +30,14 @@ class AuthService {
         throw Exception('هذا الرقم غير مسجل كابتن. تواصل مع الإدارة.');
       }
       debugPrint('[CaptainAuth] drivers/$uid exists, status=${doc.data()?['status']}');
+      // Cache role locally for offline access
+      final role = doc.data()?['role'] ?? 'captain';
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userRole', role.toString());
     } catch (e) {
       debugPrint('[CaptainAuth] Firestore read failed: $e');
       rethrow;
     }
-
-    // Cache role locally for offline access
-    final role = doc.data()?['role'] ?? 'captain';
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userRole', role.toString());
   }
 
   // ─── REGISTER captain ────────────────────────────────────────────────────────
