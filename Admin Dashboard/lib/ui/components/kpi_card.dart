@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
 import '../tokens/app_radii.dart';
-import '../tokens/app_shadows.dart';
-import '../tokens/app_text.dart';
 import 'app_card.dart';
 
 /// Displays a KPI (key performance indicator) with an icon, a label and a

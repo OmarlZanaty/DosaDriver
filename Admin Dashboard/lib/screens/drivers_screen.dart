@@ -74,28 +74,6 @@ class _DriversScreenState extends State<DriversScreen> {
     return 'pending';
   }
 
-  String _statusAr(String status) {
-    switch (status) {
-      case 'approved':
-        return 'مُعتمد';
-      case 'rejected':
-        return 'موقوف';
-      default:
-        return 'قيد المراجعة';
-    }
-  }
-
-  Color _statusSolid(String status) {
-    switch (status) {
-      case 'approved':
-        return const Color(0xFF22C55E); // hot green
-      case 'rejected':
-        return const Color(0xFFFB2C36); // hot red
-      default:
-        return const Color(0xFFFF7A18); // hot orange
-    }
-  }
-
   List<Color> _statusGradient(String status) {
     switch (status) {
       case 'approved':
@@ -601,11 +579,7 @@ class _DriversScreenState extends State<DriversScreen> {
                         final name = (driver['name'] ?? 'بدون اسم').toString();
                         final phone = (driver['phone'] ?? '').toString();
                         final carType = (driver['carType'] ?? '').toString();
-                        final carNumber = (driver['carNumber'] ?? '').toString();
-                        final carColor = (driver['carColor'] ?? '').toString();
-
                         final status = _normalizedStatus(driver);
-                        final statusSolid = _statusSolid(status);
                         final grad = _statusGradient(status);
 
                         final docsUploaded = (driver['documentsUploaded'] ?? false) == true;
@@ -901,29 +875,6 @@ class _DriverItem {
   final Map<String, dynamic> live;
 
   _DriverItem({required this.uid, required this.driver, required this.live});
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 18, offset: Offset(0, 12)),
-        ],
-      ),
-      child: Text(
-        'تحميل المزيد…',
-        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w900),
-      ),
-    );
-  }
 }
 
 class _ToggleRow extends StatelessWidget {

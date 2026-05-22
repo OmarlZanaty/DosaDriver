@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../tokens/app_colors.dart';
 import '../tokens/app_radii.dart';
-import '../tokens/app_shadows.dart';
-
 /// A modal dialog displaying JSON details of a ride. It offers actions
 /// to copy the entire JSON or just the ride ID to the clipboard. This
 /// widget extracts out the layout used in the rides screen so that it

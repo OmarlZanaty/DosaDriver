@@ -27,17 +27,6 @@ class _RidesScreenState extends State<RidesScreen> {
   // internal search in this screen (desktop-friendly)
   final _localSearch = TextEditingController();
 
-  // UI statuses (normalized lower-case)
-  static const _statuses = <String>[
-    'requested',
-    'accepted',
-    'on_the_way',
-    'arrived',
-    'started',
-    'completed',
-    'cancelled',
-  ];
-
   /// Normalize status from backend/firestore.
   /// Your backend writes: COMPLETED / CANCELED / etc (UPPERCASE)
   String _normStatus(Map<String, dynamic> data) {
@@ -267,41 +256,6 @@ class _RidesScreenState extends State<RidesScreen> {
           onCopyId: () => _copyToClipboard(doc.id, msg: 'Copied Ride ID ✅'),
         );
       },
-    );
-  }
-
-  Widget _dialogActionBtn({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.md),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: AppColors.textPrimary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-                fontFamily: 'Cairo',
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -911,7 +865,6 @@ class _RidesScreenState extends State<RidesScreen> {
         fg = AppColors.textPrimary;
         break;
       case _MiniTone.primary:
-      default:
         bg = AppColors.infoSoft;
         fg = AppColors.info;
         break;

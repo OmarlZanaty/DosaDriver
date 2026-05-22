@@ -26,8 +26,9 @@ import '../features/agencies/agencies_screen.dart';
 class _NavItem {
   final IconData icon;
   final String labelKey;
-  final String? permKey; // null = always visible
+  final String? permKey; // reserved for role-based access gating
 
+  // ignore: unused_element_parameter
   const _NavItem(this.icon, this.labelKey, [this.permKey]);
 }
 
