@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
@@ -32,14 +33,21 @@ class AdminAuthApi {
     final String? token = await user.getIdToken(true);
     if (token == null || token.isEmpty) throw Exception('Missing Firebase idToken');
 
-    final res = await ApiClient.dio.get(
-      _mePath,
-      options: Options(headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      }),
-    );
+    late Response res;
+    try {
+      res = await ApiClient.dio.get(
+        _mePath,
+        options: Options(headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        }),
+      );
+    } on DioException catch (e) {
+      debugPrint('[AdminAuthApi] /admin/me HTTP ${e.response?.statusCode}: ${e.response?.data}');
+      rethrow;
+    }
 
+    debugPrint('[AdminAuthApi] /admin/me ${res.statusCode}: ${res.data}');
     final root = (res.data is Map) ? Map<String, dynamic>.from(res.data as Map) : <String, dynamic>{};
     final u = (root['user'] is Map) ? Map<String, dynamic>.from(root['user'] as Map) : root;
 

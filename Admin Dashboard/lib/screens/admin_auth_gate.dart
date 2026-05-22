@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/session_store.dart';
@@ -59,10 +60,65 @@ class _AdminAuthGateState extends State<AdminAuthGate> {
           );
         }
 
+        if (snap.hasError) {
+          debugPrint('[AuthGate] /admin/me error: ${snap.error}');
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  const Text('غير مصرح بالدخول للوحة التحكم',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (kDebugMode)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text('${snap.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () async {
+                      await AdminAuthApi().logout();
+                      if (context.mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+                      }
+                    },
+                    child: const Text('تسجيل الخروج'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if (SessionStore.current == null) {
-          // logged in firebase but not authorized as dashboard admin
-          return const Scaffold(
-            body: Center(child: Text('Not authorized for dashboard')),
+          // /admin/me returned but role was empty — treat same as unauthorized
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  const Text('غير مصرح بالدخول للوحة التحكم',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () async {
+                      await AdminAuthApi().logout();
+                      if (context.mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+                      }
+                    },
+                    child: const Text('تسجيل الخروج'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
