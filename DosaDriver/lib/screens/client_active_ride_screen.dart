@@ -39,6 +39,10 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
 
   String? _captainName;
   String? _captainPhone;
+  String? _captainPhotoUrl;
+  String? _carModel;
+  String? _plateNumber;
+  double _captainRating = 0;
 
   // FIX: Transfer payment upload state
   bool _isTransferPayment = false;
@@ -47,7 +51,11 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
 
   bool _cancelLoading = false;
   bool _captainSubStarted = false;
-  bool _routeDrawn = false;
+  bool _cameraFitted = false;
+
+  // Stores turn-by-turn steps when ride is started
+  List<Map<String, dynamic>> _turnSteps = [];
+  bool _showTurnList = false;
 
   Timer? _searchTimer;
   int _searchDots = 1;
@@ -94,6 +102,10 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
       final prevStatus = _status;
       _status = st;
 
+      if (prevStatus != _status) {
+        _cameraFitted = false;
+      }
+
       // Parse locations
       final pm = data['pickup'];
       if (pm is Map) _pickupLatLng = LatLng((pm['lat'] ?? 0.0).toDouble(), (pm['lng'] ?? 0.0).toDouble());
@@ -112,9 +124,15 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
         _captainName  = data['captainName']?.toString();
         _captainPhone = data['captainPhone']?.toString();
         _listenCaptainLive(captainUid);
+        _loadCaptainDetails(captainUid);
       }
 
       _rebuildMarkers();
+
+      // Animate camera to fit both locations when status transitions
+      if (prevStatus != st && st != 'requested') {
+        _fitBothLocations();
+      }
 
       // FIX: Use addPostFrameCallback for navigation from stream listener
       if (st == 'completed' && prevStatus != 'completed') {
@@ -127,6 +145,18 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
       }
 
       setState(() {});
+    });
+  }
+
+  Future<void> _loadCaptainDetails(String captainUid) async {
+    final doc = await FirebaseFirestore.instance.collection('drivers').doc(captainUid).get();
+    if (!doc.exists || !mounted) return;
+    final d = doc.data()!;
+    setState(() {
+      _carModel = d['carModel']?.toString();
+      _plateNumber = d['plateNumber']?.toString();
+      _captainPhotoUrl = d['photoUrl']?.toString() ?? d['documents']?['profileImage']?.toString();
+      _captainRating = (d['rating'] ?? 0).toDouble();
     });
   }
 
@@ -143,9 +173,30 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
       if (lat == 0.0 && lng == 0.0) return;
       _captainLatLng = LatLng(lat, lng);
       _rebuildMarkers();
-      if (!_routeDrawn) _drawRoute();
+
+      // 🔴 FIX: Always try to draw/update route when captain moves
+      _drawRoute();
+
       if (mounted) setState(() {});
     });
+  }
+
+  void _fitBothLocations() {
+    if (_cameraFitted) return;
+    final from = _captainLatLng ?? _pickupLatLng;
+    final to = _status == 'started' ? _destLatLng : _pickupLatLng;
+    if (from == null || to == null || _mapController == null) return;
+    final swLat = from.latitude < to.latitude ? from.latitude : to.latitude;
+    final neLat = from.latitude > to.latitude ? from.latitude : to.latitude;
+    final swLng = from.longitude < to.longitude ? from.longitude : to.longitude;
+    final neLng = from.longitude > to.longitude ? from.longitude : to.longitude;
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(southwest: LatLng(swLat, swLng), northeast: LatLng(neLat, neLng)),
+        100,
+      ),
+    );
+    _cameraFitted = true;
   }
 
   void _rebuildMarkers() {
@@ -171,20 +222,27 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
   Future<void> _drawRoute() async {
     final dest = (_status == 'started' ? _destLatLng : _pickupLatLng);
     if (_captainLatLng == null || dest == null) return;
+
     try {
       final uri = Uri.parse(
         'https://maps.googleapis.com/maps/api/directions/json'
         '?origin=${_captainLatLng!.latitude},${_captainLatLng!.longitude}'
-        '&destination=${dest.latitude},${dest.longitude}&mode=driving&key=${AppConfig.mapsApiKey}',
+        '&destination=${dest.latitude},${dest.longitude}'
+        '&mode=driving&key=${AppConfig.mapsApiKey}',
       );
       final res = await http.get(uri);
       final data = jsonDecode(res.body);
       if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
-        final pts = _decode(data['routes'][0]['overview_polyline']['points']);
+        final route = data['routes'][0];
+        final pts = _decode(route['overview_polyline']['points']);
+        final steps = (route['legs'] as List?)?.isNotEmpty == true
+            ? ((route['legs'][0]['steps'] as List?) ?? [])
+            : <dynamic>[];
         if (mounted) setState(() {
           _polylines = {Polyline(polylineId: const PolylineId('r'), color: AppColors.primary, width: 4, points: pts)};
-          _routeDrawn = true;
+          _turnSteps = steps.map((s) => Map<String, dynamic>.from(s)).toList();
         });
+        _fitBothLocations();
       }
     } catch (_) {}
   }
@@ -256,6 +314,64 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
     } finally {
       if (mounted) setState(() => _uploadingProof = false);
     }
+  }
+
+  void _showCaptainInfoDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(99))),
+          Row(children: [
+            CircleAvatar(radius: 32,
+                backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
+                onBackgroundImageError: _captainPhotoUrl != null ? (_, __) {} : null,
+                backgroundColor: const Color(0xFFF5F5F5),
+                child: _captainPhotoUrl == null ? const Icon(Icons.person, size: 32, color: Colors.grey) : null),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              if (_captainRating > 0)
+                Row(children: [
+                  ...List.generate(5, (i) => Icon(
+                    i < _captainRating.round() ? Icons.star : Icons.star_border,
+                    size: 18, color: Colors.amber[700])),
+                  const SizedBox(width: 6),
+                  Text('${_captainRating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 14)),
+                ]),
+            ])),
+          ]),
+          const SizedBox(height: 14),
+          if (_carModel != null || _plateNumber != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                const Icon(Icons.directions_car, color: Colors.black54),
+                const SizedBox(width: 10),
+                Text('${_carModel ?? ''}${_carModel != null && _plateNumber != null ? ' · ' : ''}${_plateNumber ?? ''}',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          const SizedBox(height: 20),
+          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: () { Navigator.pop(ctx); if (_captainPhone?.isNotEmpty == true) launchUrl(Uri.parse('tel:$_captainPhone')); },
+            icon: const Icon(Icons.phone, color: Colors.green),
+            label: const Text('اتصال بالكابتن', style: TextStyle(color: Colors.green)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.green),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          )),
+        ]),
+      ),
+    );
   }
 
   void _goToRating() {
@@ -354,21 +470,43 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
 
                   // Captain info
                   if (_status != 'requested' && _captainName != null)
-                    Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(children: [
-                      const CircleAvatar(radius: 24, backgroundColor: Color(0xFFF5F5F5),
-                          child: Icon(Icons.person, color: Colors.grey)),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    GestureDetector(
+                      onTap: () => _showCaptainInfoDialog(),
+                      child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(children: [
+                        CircleAvatar(radius: 24,
+                            backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
+                            onBackgroundImageError: _captainPhotoUrl != null ? (_, __) {} : null,
+                            backgroundColor: const Color(0xFFF5F5F5),
+                            child: _captainPhotoUrl == null
+                                ? const Icon(Icons.person, color: Colors.grey) : null),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                          const SizedBox(height: 2),
+                          Row(children: [
+                            if (_carModel != null)
+                              Text('$_carModel', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            if (_carModel != null && _plateNumber != null)
+                              Text(' · ', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            if (_plateNumber != null)
+                              Text('$_plateNumber', style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600)),
+                          ]),
+                          if (_captainRating > 0)
+                            Row(children: [
+                              Icon(Icons.star, size: 14, color: Colors.amber[700]),
+                              const SizedBox(width: 3),
+                              Text('${_captainRating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            ]),
+                        ])),
+                        if (_captainPhone?.isNotEmpty == true)
+                          GestureDetector(
+                            onTap: () => launchUrl(Uri.parse('tel:$_captainPhone')),
+                            child: Container(padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), shape: BoxShape.circle),
+                                child: const Icon(Icons.phone, color: Colors.green, size: 22)),
+                          ),
                       ])),
-                      if (_captainPhone?.isNotEmpty == true)
-                        GestureDetector(
-                          onTap: () => launchUrl(Uri.parse('tel:$_captainPhone')),
-                          child: Container(padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), shape: BoxShape.circle),
-                              child: const Icon(Icons.phone, color: Colors.green, size: 22)),
-                        ),
-                    ])),
+                    ),
 
                   if (pickupAddr.isNotEmpty) ...[
                     _AddRow(icon: Icons.circle, color: Colors.green, label: 'من', addr: pickupAddr),
@@ -428,6 +566,8 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 14)),
                     )),
+                  if (_status == 'started' && _turnSteps.isNotEmpty)
+                    _buildTurnList(),
                 ]),
               ),
             ),
@@ -435,6 +575,59 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildTurnList() {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      GestureDetector(
+        onTap: () => setState(() => _showTurnList = !_showTurnList),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            const Icon(Icons.route, size: 18, color: Colors.black54),
+            const SizedBox(width: 6),
+            const Text('الاتجاهات', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const Spacer(),
+            Text('${_turnSteps.length}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            Icon(_showTurnList ? Icons.expand_less : Icons.expand_more, size: 18),
+          ]),
+        ),
+      ),
+      if (_showTurnList)
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          constraints: const BoxConstraints(maxHeight: 200),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAFAFA),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFEEEEEE)),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(10),
+            itemCount: _turnSteps.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final step = _turnSteps[i];
+              final html = step['html_instructions']?.toString() ?? '';
+              final dist = step['distance']?['text']?.toString() ?? '';
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${i + 1}. ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(html.replaceAll(RegExp(r'<[^>]*>'), ''),
+                      style: const TextStyle(fontSize: 12))),
+                  if (dist.isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(right: 4), child: Text(dist,
+                        style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w600))),
+                ]),
+              );
+            },
+          ),
+        ),
+    ]);
   }
 }
 

@@ -13,10 +13,14 @@ class BackendApi {
   Future<String> _getToken() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('انتهت الجلسة. يرجى تسجيل الدخول مجدداً.');
+    // Try cached token first (fast path, works offline).
     try {
       final t = await user.getIdToken(false);
       if (t != null && t.isNotEmpty) return t;
-    } catch (_) {}
+    } catch (_) {
+      // fall through to force-refresh
+    }
+    // Force refresh — handles expired tokens / clock skew.
     try {
       final t = await user.getIdToken(true);
       if (t != null && t.isNotEmpty) return t;
