@@ -15,6 +15,7 @@ import 'captain_earnings_screen.dart';
 import 'captain_profile_screen.dart';
 import 'captain_ride_map_screen.dart';
 import 'captain_trips_screen.dart';
+import '../widgets/captain_drawer.dart';
 import '../services/backend_api.dart';
 import '../services/captain_ride_api.dart';
 import '../services/notification_service.dart';
@@ -57,9 +58,17 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
   double _pulseT = 0.0;
 
   // ======================
+  // SCAFFOLD KEY (for drawer)
+  // ======================
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // ======================
   // STATE
   // ======================
   bool isOnline = false;
+
+  // Admin-defined pricing per ride type (min/max/average)
+  Map<String, Map<String, double>> _rideTypePricing = {};
 
   // Bottom sheet height (used to lift button above it)
   double _sheetHeight = 140.0;
@@ -577,15 +586,46 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
   }
 
   Future<void> _initCaptain() async {
-
     // 🔴 FIX: Request location permission on startup
     await _ensureLocationPermission();
-
     await _debugTokenClaims();
     await _loadCaptainType();
     await _loadOnlineState();
     await _checkReconnect();
     await _loadDriverPhoto();
+    _loadPricing(); // fire-and-forget — populate ride-type pricing from Firestore
+  }
+
+  /// Load admin-defined ride-type pricing from Firestore `rideTypePricing`.
+  /// Falls back to sensible defaults so the UI never breaks.
+  Future<void> _loadPricing() async {
+    final defaults = <String, Map<String, double>>{
+      'FAIR_VALUE': {'min': 25, 'max': 120, 'average': 60},
+      'PREMIUM':    {'min': 50, 'max': 250, 'average': 130},
+      'CUTE_CAR':   {'min': 30, 'max': 150, 'average': 80},
+      'SCOOTER':    {'min': 15, 'max':  80, 'average': 40},
+    };
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('rideTypePricing')
+          .get();
+      if (snap.docs.isEmpty) {
+        if (mounted) setState(() => _rideTypePricing = defaults);
+        return;
+      }
+      final pricing = <String, Map<String, double>>{};
+      for (final d in snap.docs) {
+        final data = d.data();
+        pricing[d.id] = {
+          'min':     (data['minPrice']     as num?)?.toDouble() ?? 25,
+          'max':     (data['maxPrice']     as num?)?.toDouble() ?? 200,
+          'average': (data['averagePrice'] as num?)?.toDouble() ?? 80,
+        };
+      }
+      if (mounted) setState(() => _rideTypePricing = pricing);
+    } catch (_) {
+      if (mounted) setState(() => _rideTypePricing = defaults);
+    }
   }
 
   Future<void> sendRideNotification() async {
@@ -751,6 +791,8 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const CaptainDrawer(),
       backgroundColor: AppColors.lightGray,
       body: SafeArea(
         child: Column(
@@ -1008,11 +1050,15 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
                                                     final drop = addrOf(r, 'drop');
                                                     final price = fmtPrice(r['price'] ?? r['suggestedFare'] ?? 0);
 
+                                                    final rType = (r['type'] ?? r['rideType'] ?? '').toString();
+                                                    final avgP = _rideTypePricing[rType]?['average'];
                                                     return _RideHorizontalCard(
                                                       idStr: idStr,
                                                       pickup: pickup,
                                                       drop: drop,
                                                       price: price,
+                                                      rideType: rType,
+                                                      averagePrice: avgP,
                                                       progress: _progressValue(idStr),
                                                       secondsLeft: _secondsLeft(idStr),
                                                       onAccept: () {
@@ -1113,58 +1159,9 @@ class _CaptainHomeScreenState extends State<CaptainHomeScreen>
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'earnings') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CaptainEarningsScreen(),
-                  ),
-                );
-              } else if (value == 'trips') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CaptainTripsScreen(),
-                  ),
-                );
-              } else if (value == 'language') {
-                LanguageController.instance.toggleLanguage();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'earnings',
-                child: Text(AppStrings.earnings(context)),
-              ),
-              PopupMenuItem(
-                value: 'trips',
-                child: Text(AppStrings.trips(context)),
-              ),
-              PopupMenuItem(
-                value: 'language',
-                child: Row(
-                  children: [
-                    const Icon(Icons.language, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      LanguageController.instance.isArabic
-                          ? 'English'
-                          : 'العربية',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.lightGray,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.settings_outlined),
-            ),
+          _AnimatedIconButton(
+            icon: Icons.menu,
+            onTap: () => _scaffoldKey.currentState?.openDrawer(),
           ),
         ],
       ),
@@ -1297,6 +1294,32 @@ class _AnimatedIconButtonState extends State<_AnimatedIconButton> {
   }
 }
 
+/// Shows a colour-coded pill: below average / average / above average
+class _PriceIndicator extends StatelessWidget {
+  final double offeredPrice;
+  final double averagePrice;
+  const _PriceIndicator({required this.offeredPrice, required this.averagePrice});
+
+  @override
+  Widget build(BuildContext context) {
+    if (averagePrice <= 0) return const SizedBox.shrink();
+    final ratio = offeredPrice / averagePrice;
+    Color bg; String label;
+    if (ratio < 0.90) {
+      bg = Colors.red.shade100; label = '⬇ أقل من المتوسط';
+    } else if (ratio > 1.10) {
+      bg = Colors.green.shade100; label = '⬆ أعلى من المتوسط';
+    } else {
+      bg = Colors.orange.shade100; label = '≈ في المتوسط';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
 class _AnimatedTextButton extends StatefulWidget {
   final String text;
   final VoidCallback onTap;
@@ -1338,6 +1361,8 @@ class _RideHorizontalCard extends StatelessWidget {
   final String pickup;
   final String drop;
   final String price;
+  final String rideType;
+  final double? averagePrice;
   final double progress;
   final int secondsLeft;
   final VoidCallback onAccept;
@@ -1348,6 +1373,8 @@ class _RideHorizontalCard extends StatelessWidget {
     required this.pickup,
     required this.drop,
     required this.price,
+    this.rideType = '',
+    this.averagePrice,
     required this.progress,
     required this.secondsLeft,
     required this.onAccept,
@@ -1452,33 +1479,50 @@ class _RideHorizontalCard extends StatelessWidget {
 
                     const SizedBox(height: 10),
 
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'السعر: $price',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          height: 38,
-                          child: ElevatedButton(
-                            onPressed: onAccept,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFB3261E),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'العرض: $price ج',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFFB3261E)),
+                                  ),
+                                  if (averagePrice != null)
+                                    Text(
+                                      'متوسط السوق: ${averagePrice!.toStringAsFixed(0)} ج',
+                                      style: const TextStyle(fontSize: 11, color: Colors.black45),
+                                    ),
+                                ],
                               ),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              minimumSize: const Size(0, 38),
                             ),
-                            child: const Text('قبول', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-                          ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              height: 38,
+                              child: ElevatedButton(
+                                onPressed: onAccept,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFB3261E),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  minimumSize: const Size(0, 38),
+                                ),
+                                child: const Text('قبول', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                          ],
                         ),
+                        if (averagePrice != null) ...[
+                          const SizedBox(height: 4),
+                          _PriceIndicator(offeredPrice: double.tryParse(price) ?? 0, averagePrice: averagePrice!),
+                        ],
                       ],
                     ),
                   ],

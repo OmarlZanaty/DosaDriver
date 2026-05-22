@@ -24,6 +24,7 @@ class ClientRideApi {
     required String rideType,
     required double distanceKm, required double durationMin,
     String paymentMethod = 'CASH',
+    double? offeredPrice,       // client's custom price offer
   }) async {
     final res = await _api.post('/v1/rides', body: {
       'pickupLat': pickupLat, 'pickupLng': pickupLng, 'pickupAddr': pickupAddr,
@@ -32,6 +33,8 @@ class ClientRideApi {
       'distanceKm':     distanceKm,
       'durationMin':    durationMin,
       'paymentMethod':  paymentMethod,
+      if (offeredPrice != null && offeredPrice > 0)
+        'price': offeredPrice,  // backend uses this as the ride's offered fare
     });
     return (res['ride'] as Map<String, dynamic>?) ?? {};
   }

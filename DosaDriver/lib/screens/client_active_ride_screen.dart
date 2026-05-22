@@ -318,6 +318,7 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
   void _showCaptainInfoDialog() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
@@ -327,14 +328,27 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
           Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(99))),
           Row(children: [
-            CircleAvatar(radius: 32,
-                backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
-                onBackgroundImageError: _captainPhotoUrl != null ? (_, __) {} : null,
-                backgroundColor: const Color(0xFFF5F5F5),
-                child: _captainPhotoUrl == null ? const Icon(Icons.person, size: 32, color: Colors.grey) : null),
+            // Tap photo to see reviews
+            GestureDetector(
+              onTap: () { Navigator.pop(ctx); _showCaptainReviewsModal(); },
+              child: Stack(children: [
+                CircleAvatar(radius: 32,
+                    backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
+                    onBackgroundImageError: _captainPhotoUrl != null ? (_, __) {} : null,
+                    backgroundColor: const Color(0xFFF5F5F5),
+                    child: _captainPhotoUrl == null ? const Icon(Icons.person, size: 32, color: Colors.grey) : null),
+                Positioned(bottom: 0, right: 0,
+                  child: Container(width: 18, height: 18,
+                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.star, size: 11, color: Colors.white))),
+              ]),
+            ),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              GestureDetector(
+                onTap: () { Navigator.pop(ctx); _showCaptainReviewsModal(); },
+                child: Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+              ),
               if (_captainRating > 0)
                 Row(children: [
                   ...List.generate(5, (i) => Icon(
@@ -343,6 +357,11 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
                   const SizedBox(width: 6),
                   Text('${_captainRating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 14)),
                 ]),
+              TextButton(
+                onPressed: () { Navigator.pop(ctx); _showCaptainReviewsModal(); },
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                child: const Text('عرض التقييمات والتعليقات', style: TextStyle(fontSize: 12)),
+              ),
             ])),
           ]),
           const SizedBox(height: 14),
@@ -371,6 +390,112 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
         ]),
       ),
     );
+  }
+
+  /// Reviews modal — loads captain's recent ride ratings from Firestore.
+  void _showCaptainReviewsModal() {
+    final captainUid = _rideData?['captainUid']?.toString();
+    if (captainUid == null || captainUid.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.60,
+        maxChildSize: 0.90,
+        builder: (_, sc) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: Column(children: [
+            Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(99))),
+            // Caption info
+            Row(children: [
+              CircleAvatar(radius: 24,
+                  backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
+                  backgroundColor: const Color(0xFFF5F5F5),
+                  child: _captainPhotoUrl == null ? const Icon(Icons.person) : null),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                if (_captainRating > 0)
+                  Row(children: [
+                    Icon(Icons.star, size: 14, color: Colors.amber[700]),
+                    const SizedBox(width: 4),
+                    Text('${_captainRating.toStringAsFixed(1)} متوسط التقييم',
+                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  ]),
+              ])),
+            ]),
+            const Divider(height: 24),
+            // Reviews list
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _fetchCaptainReviews(captainUid),
+                builder: (ctx, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                  }
+                  final reviews = snap.data ?? [];
+                  if (reviews.isEmpty) {
+                    return const Center(
+                      child: Text('لا توجد تقييمات بعد', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    );
+                  }
+                  return ListView.separated(
+                    controller: sc,
+                    itemCount: reviews.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final r = reviews[i];
+                      final stars = (r['rating'] as num?)?.toInt() ?? 0;
+                      final comment = r['comment']?.toString() ?? '';
+                      final riderName = r['riderName']?.toString() ?? r['clientName']?.toString() ?? 'مستخدم';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            ...List.generate(5, (j) => Icon(
+                              j < stars ? Icons.star : Icons.star_border,
+                              size: 16, color: Colors.amber[700])),
+                            const Spacer(),
+                            Text(riderName, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          ]),
+                          if (comment.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(comment, style: const TextStyle(fontSize: 13)),
+                          ],
+                        ]),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchCaptainReviews(String captainUid) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('rides')
+          .where('captainUid', isEqualTo: captainUid)
+          .where('status', isEqualTo: 'completed')
+          .orderBy('createdAt', descending: true)
+          .limit(15)
+          .get();
+      return snap.docs
+          .map((d) => d.data())
+          .where((d) => d['rating'] != null)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   void _goToRating() {

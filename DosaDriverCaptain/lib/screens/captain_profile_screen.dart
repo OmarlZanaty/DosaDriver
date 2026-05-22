@@ -7,6 +7,7 @@ import '../core/theme/app_text_styles.dart';
 import '../screens/splash_screen.dart';
 import 'diagnostics_screen.dart';
 import '../services/driver_stats_service.dart';
+import '../widgets/captain_drawer.dart';
 
 class CaptainProfileScreen extends StatelessWidget {
   const CaptainProfileScreen({super.key});
@@ -16,6 +17,7 @@ class CaptainProfileScreen extends StatelessWidget {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return Scaffold(
+      drawer: const CaptainDrawer(),
       backgroundColor: AppColors.lightGray,
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
@@ -49,6 +51,10 @@ class CaptainProfileScreen extends StatelessWidget {
                 expandedHeight: 240,
                 pinned: true,
                 backgroundColor: AppColors.primary,
+                leading: Builder(builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.white),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                )),
                 flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
                   title: Text(name),
