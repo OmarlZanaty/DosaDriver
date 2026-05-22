@@ -30,16 +30,24 @@ class AppColors {
   /////////////////
 
   /// Primary brand colour (blue). Used for call‑to‑action buttons and
-  /// highlights on the dashboard.
-  static const Color primary = Color(0xFF2563EB);
+  /// Brand red — matches DosaDriver mobile apps
+  static const Color primary = Color(0xFFD32F2F);
 
-  /// Hover/active state for the primary brand colour. Use for interactive
-  /// states such as hovered buttons or selected chips.
-  static const Color primaryHover = Color(0xFF1D4ED8);
+  /// Hover/active state for the primary brand colour.
+  static const Color primaryHover = Color(0xFFB71C1C);
 
-  /// Soft version of the primary colour. Ideal for backgrounds of chips
-  /// representing the primary status.
-  static const Color primarySoft = Color(0xFFDBEAFE);
+  /// Soft version of the primary colour. Ideal for backgrounds of chips.
+  static const Color primarySoft = Color(0xFFFFEBEE);
+
+  /// Light tint for borders and outlines.
+  static const Color primaryLight = Color(0xFFFFCDD2);
+
+  /// Sidebar active state tints.
+  static const Color sidebarActiveBg = Color(0xFFFFF5F5);
+
+  /// Info / Blue (separate from primary)
+  static const Color blue = Color(0xFF3B82F6);
+  static const Color blueSoft = Color(0xFFDBEAFE);
 
   /////////////////
   // Status colours
