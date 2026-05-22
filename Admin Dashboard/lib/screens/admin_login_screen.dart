@@ -48,7 +48,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       Navigator.of(context).pushNamedAndRemoveUntil('/', (r) => false);
     } catch (e) {
       // keep it friendly for admin
-      setState(() => _error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      if (mounted) setState(() => _error = 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

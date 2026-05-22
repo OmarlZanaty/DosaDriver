@@ -9,7 +9,7 @@ class ApiClient {
       baseUrl: ApiConfig.baseUrl, // ✅ no /v1 here
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
-      sendTimeout: const Duration(seconds: 20),
+      // sendTimeout omitted: not supported on Web for requests without a body
       headers: const {'Accept': 'application/json'},
       responseType: ResponseType.json,
     ),
