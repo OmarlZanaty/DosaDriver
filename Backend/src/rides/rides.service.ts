@@ -173,7 +173,7 @@ export class RidesService {
     if (!ride) throw new NotFoundException('الرحلة غير موجودة');
     assertNotTerminal(ride.status);
     if (ride.captainId !== captain.id) throw new ForbiddenException('NOT_YOUR_RIDE');
-    if (![RideStatus.ACCEPTED, RideStatus.ARRIVED].includes(ride.status)) {
+    if (!([RideStatus.ACCEPTED, RideStatus.ARRIVED] as RideStatus[]).includes(ride.status)) {
       throw new BadRequestException('لا يمكن الإلغاء في هذه المرحلة');
     }
     const updated = await this.prisma.ride.update({
@@ -313,7 +313,7 @@ export class RidesService {
     const ride = await this.prisma.ride.findUnique({ where: { id: rideId } });
     if (!ride) throw new NotFoundException('الرحلة غير موجودة');
     if (ride.riderId !== rider.id) throw new ForbiddenException('NOT_YOUR_RIDE');
-    if (![RideStatus.ACCEPTED, RideStatus.ARRIVED, RideStatus.STARTED].includes(ride.status)) {
+    if (!([RideStatus.ACCEPTED, RideStatus.ARRIVED, RideStatus.STARTED] as RideStatus[]).includes(ride.status)) {
       throw new BadRequestException('لا يمكن رفع الإيصال في هذه الحالة');
     }
 

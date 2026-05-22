@@ -74,6 +74,15 @@ export class NotificationService {
     });
   }
 
+  async notifyAdminBroadcast(targetRole: string | null, title: string, body: string) {
+    const where: any = { pushToken: { not: null } };
+    if (targetRole) where.role = targetRole;
+    const users = await this.prisma.user.findMany({ where, select: { pushToken: true } });
+    const tokens = users.map(u => u.pushToken!).filter(Boolean);
+    if (!tokens.length) return;
+    await this.sendToTokens(tokens, title, body, { type: 'BROADCAST' });
+  }
+
   async notifyNewRide(ride: any) {
     // Notify all online captains with matching ride type
     const captains = await this.prisma.user.findMany({

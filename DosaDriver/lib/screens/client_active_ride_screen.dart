@@ -12,7 +12,6 @@ import '../core/config.dart';
 import '../core/theme/app_colors.dart';
 import '../services/backend_api.dart';
 import '../services/client_ride_api.dart';
-import '../widgets/custom_widgets.dart';
 import 'client_home_screen.dart';
 import 'client_rate_ride_screen.dart';
 

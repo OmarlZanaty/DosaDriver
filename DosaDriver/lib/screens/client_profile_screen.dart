@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/theme/app_colors.dart';
 import '../core/localization/language_controller.dart';
 import '../services/auth_service.dart';
-import '../widgets/custom_widgets.dart';
 import 'client_signin_screen.dart';
 
 class ClientProfileScreen extends StatefulWidget {
