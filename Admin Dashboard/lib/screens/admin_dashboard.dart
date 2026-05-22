@@ -18,6 +18,7 @@ import 'pricing_screen.dart';
 import 'reports_screen.dart';
 import 'captain_intelligence_screen.dart';
 import 'ratings_screen.dart';
+import 'promotions_screen.dart';
 import '../features/dashboard_users/dashboard_users_screen.dart';
 import '../features/agencies/agencies_screen.dart';
 
@@ -62,6 +63,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     const _NavItem(Icons.verified_user_outlined, 'approvals'),
     const _NavItem(Icons.account_balance_wallet_outlined, 'finance'),
     const _NavItem(Icons.price_change_outlined, 'pricing'),
+    const _NavItem(Icons.local_offer_outlined, 'promotions'),
     const _NavItem(Icons.notifications_outlined, 'notifications'),
     const _NavItem(Icons.bar_chart_outlined, 'reports'),
     const _NavItem(Icons.analytics_outlined, 'captain_intel'),
@@ -85,6 +87,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ApprovalsScreen(search: search),
       FinanceScreen(search: search),
       const PricingScreen(),
+      const PromotionsScreen(),
       const NotificationsScreen(),
       const ReportsScreen(),
       const CaptainIntelligenceScreen(),
@@ -188,20 +191,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   _navTile(items, 4, lang),
 
                   const SizedBox(height: 6),
-                  if (_sidebarExpanded) _sectionLabel(lang.isArabic ? 'FINANCIALS' : 'FINANCIALS'),
-                  _navTile(items, 5, lang),
-                  _navTile(items, 6, lang),
-                  _navTile(items, 7, lang),
-                  _navTile(items, 8, lang),
-                  _navTile(items, 9, lang),
+                  if (_sidebarExpanded) _sectionLabel('FINANCIALS'),
+                  _navTile(items, 5, lang),  // finance
+                  _navTile(items, 6, lang),  // pricing
+                  _navTile(items, 7, lang),  // promotions
+                  _navTile(items, 8, lang),  // notifications
+                  _navTile(items, 9, lang),  // reports
+                  _navTile(items, 10, lang), // captain_intel
 
                   const SizedBox(height: 6),
                   if (_sidebarExpanded) _sectionLabel('MANAGEMENT'),
-                  _navTile(items, 10, lang), // ratings
-                  _navTile(items, 11, lang), // support
-                  _navTile(items, 12, lang), // settings
-                  if (items.length > 13) _navTile(items, 13, lang), // admins
-                  if (items.length > 14) _navTile(items, 14, lang), // agencies
+                  _navTile(items, 11, lang), // ratings
+                  _navTile(items, 12, lang), // support
+                  _navTile(items, 13, lang), // settings
+                  if (items.length > 14) _navTile(items, 14, lang), // admins
+                  if (items.length > 15) _navTile(items, 15, lang), // agencies
                 ],
               ),
             ),
