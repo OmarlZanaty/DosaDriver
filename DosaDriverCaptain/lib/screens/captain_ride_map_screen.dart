@@ -153,16 +153,24 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
       final newLatLng = LatLng(pos.latitude, pos.longitude);
       _captainHeading = pos.heading;
       setState(() => _captainLatLng = newLatLng);
+
+      // Always rebuild markers so the captain's own pin moves on the map.
+      _rebuildMarkers();
+
       _updateFirestoreLive(pos.latitude, pos.longitude, pos.heading);
       _maybeDrawRoute();
       _advanceStepIfNeeded();
-      // Heading-up camera follow while ride is active
-      if (_status == RideStatus.started && _mapController != null) {
+
+      // Navigation-mode camera: heading-up tilt while driving to pickup OR
+      // destination.  Stays still at 'arrived' so the captain isn't fighting
+      // the camera while waiting for the client.
+      if ((_status == RideStatus.accepted || _status == RideStatus.started) &&
+          _mapController != null) {
         _mapController!.animateCamera(CameraUpdate.newCameraPosition(
           CameraPosition(
             target: newLatLng,
             bearing: _captainHeading,
-            tilt: 25,
+            tilt: 30,
             zoom: 17,
           ),
         ));
@@ -224,12 +232,12 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
   Future<void> _maybeDrawRoute() async {
     final dest = _status == RideStatus.started ? _dropoffLatLng : _pickupLatLng;
     if (_captainLatLng == null || dest == null) return;
-    if (_routeDrawn && _status != RideStatus.started) return;
 
-    // During an active trip, only redraw the route when the captain has moved
-    // at least _routeRedrawThresholdM metres from the last route origin.
-    // This avoids a Directions API call on every GPS tick (every ~10 m).
-    if (_status == RideStatus.started && _routeDrawn && _lastRouteOrigin != null) {
+    // Throttle: only re-call Directions API when captain moves ≥ threshold
+    // from the position used for the last draw.  _lastRouteOrigin is reset
+    // to null on every status change, so the first draw after each transition
+    // always fires immediately regardless of distance.
+    if (_routeDrawn && _lastRouteOrigin != null) {
       final moved = Geolocator.distanceBetween(
         _captainLatLng!.latitude, _captainLatLng!.longitude,
         _lastRouteOrigin!.latitude, _lastRouteOrigin!.longitude,
@@ -262,7 +270,10 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
           _routeDrawn = true;
         });
 
-        // Fit camera to show both captain and destination on screen (only once per status)
+        // On first draw for this status, briefly show an overview so the
+        // captain can orient (both their position and the destination are
+        // visible).  The navigation-mode camera in the location stream will
+        // then take over as soon as the next GPS tick fires.
         if (_mapController != null && !_cameraFitted) {
           final southLat = _captainLatLng!.latitude < dest.latitude
               ? _captainLatLng!.latitude : dest.latitude;
@@ -276,10 +287,10 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
           _mapController!.animateCamera(
             CameraUpdate.newLatLngBounds(
               LatLngBounds(
-                southwest: LatLng(southLat, westLng),
-                northeast: LatLng(northLat, eastLng),
+                southwest: LatLng(southLat - 0.002, westLng - 0.002),
+                northeast: LatLng(northLat + 0.002, eastLng + 0.002),
               ),
-              100,
+              80,
             ),
           );
           _cameraFitted = true;

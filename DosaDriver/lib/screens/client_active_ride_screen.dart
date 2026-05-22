@@ -41,6 +41,7 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
   String? _captainPhotoUrl;
   String? _carModel;
   String? _plateNumber;
+  String? _carColor;       // ← new
   double _captainRating = 0;
 
   // FIX: Transfer payment upload state
@@ -51,6 +52,10 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
   bool _cancelLoading = false;
   bool _captainSubStarted = false;
   bool _cameraFitted = false;
+
+  // Route-redraw throttle: only call Directions API when captain moved ≥ 80 m
+  LatLng? _lastRouteOrigin;
+  static const double _routeThresholdM = 80;
 
   // Stores turn-by-turn steps when ride is started
   List<Map<String, dynamic>> _turnSteps = [];
@@ -103,6 +108,7 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
 
       if (prevStatus != _status) {
         _cameraFitted = false;
+        _lastRouteOrigin = null; // force immediate route redraw after status change
       }
 
       // Parse locations
@@ -152,9 +158,11 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
     if (!doc.exists || !mounted) return;
     final d = doc.data()!;
     setState(() {
-      _carModel = d['carModel']?.toString();
+      _carModel    = d['carModel']?.toString();
       _plateNumber = d['plateNumber']?.toString();
-      _captainPhotoUrl = d['photoUrl']?.toString() ?? d['documents']?['profileImage']?.toString();
+      _carColor    = d['carColor']?.toString();
+      _captainPhotoUrl = d['photoUrl']?.toString()
+          ?? d['documents']?['profileImage']?.toString();
       _captainRating = (d['rating'] ?? 0).toDouble();
     });
   }
@@ -173,8 +181,14 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
       _captainLatLng = LatLng(lat, lng);
       _rebuildMarkers();
 
-      // 🔴 FIX: Always try to draw/update route when captain moves
-      _drawRoute();
+      // Throttle: only re-request Directions API when captain has moved
+      // enough from the last route draw (avoids hammering on every Firestore tick).
+      final shouldRedraw = _lastRouteOrigin == null ||
+          ((_captainLatLng != null && _lastRouteOrigin != null)
+              ? ((_captainLatLng!.latitude - _lastRouteOrigin!.latitude).abs() * 111000 > _routeThresholdM ||
+                 (_captainLatLng!.longitude - _lastRouteOrigin!.longitude).abs() * 111000 > _routeThresholdM)
+              : true);
+      if (shouldRedraw) _drawRoute();
 
       if (mounted) setState(() {});
     });
@@ -221,6 +235,8 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
   Future<void> _drawRoute() async {
     final dest = (_status == 'started' ? _destLatLng : _pickupLatLng);
     if (_captainLatLng == null || dest == null) return;
+
+    _lastRouteOrigin = _captainLatLng; // record origin before async gap
 
     try {
       final uri = Uri.parse(
@@ -365,15 +381,45 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
             ])),
           ]),
           const SizedBox(height: 14),
-          if (_carModel != null || _plateNumber != null)
+          if (_carModel != null || _plateNumber != null || _carColor != null)
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(12)),
-              child: Row(children: [
-                const Icon(Icons.directions_car, color: Colors.black54),
-                const SizedBox(width: 10),
-                Text('${_carModel ?? ''}${_carModel != null && _plateNumber != null ? ' · ' : ''}${_plateNumber ?? ''}',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Car model + color
+                Row(children: [
+                  const Icon(Icons.directions_car, color: Colors.black54, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    [_carModel, _carColor].whereType<String>().where((s) => s.isNotEmpty).join(' • '),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  )),
+                ]),
+                // Plate number
+                if (_plateNumber != null && _plateNumber!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.credit_card, color: Colors.black45, size: 16),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1565C0).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF1565C0).withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        _plateNumber!,
+                        style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w800,
+                          letterSpacing: 1.4, color: Color(0xFF1565C0),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ],
               ]),
             ),
           const SizedBox(height: 20),
@@ -592,44 +638,17 @@ class _ClientActiveRideScreenState extends State<ClientActiveRideScreen> {
                   Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14),
                       decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(99))),
 
-                  // Captain info
+                  // ── Captain info card ─────────────────────────────────
                   if (_status != 'requested' && _captainName != null)
-                    GestureDetector(
-                      onTap: () => _showCaptainInfoDialog(),
-                      child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(children: [
-                        CircleAvatar(radius: 24,
-                            backgroundImage: _captainPhotoUrl != null ? NetworkImage(_captainPhotoUrl!) : null,
-                            onBackgroundImageError: _captainPhotoUrl != null ? (_, __) {} : null,
-                            backgroundColor: const Color(0xFFF5F5F5),
-                            child: _captainPhotoUrl == null
-                                ? const Icon(Icons.person, color: Colors.grey) : null),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(_captainName ?? '', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                          const SizedBox(height: 2),
-                          Row(children: [
-                            if (_carModel != null)
-                              Text('$_carModel', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            if (_carModel != null && _plateNumber != null)
-                              Text(' · ', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            if (_plateNumber != null)
-                              Text('$_plateNumber', style: const TextStyle(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600)),
-                          ]),
-                          if (_captainRating > 0)
-                            Row(children: [
-                              Icon(Icons.star, size: 14, color: Colors.amber[700]),
-                              const SizedBox(width: 3),
-                              Text('${_captainRating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                            ]),
-                        ])),
-                        if (_captainPhone?.isNotEmpty == true)
-                          GestureDetector(
-                            onTap: () => launchUrl(Uri.parse('tel:$_captainPhone')),
-                            child: Container(padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), shape: BoxShape.circle),
-                                child: const Icon(Icons.phone, color: Colors.green, size: 22)),
-                          ),
-                      ])),
+                    _CaptainInfoCard(
+                      name:       _captainName!,
+                      photoUrl:   _captainPhotoUrl,
+                      phone:      _captainPhone,
+                      carModel:   _carModel,
+                      carColor:   _carColor,
+                      plateNumber: _plateNumber,
+                      rating:     _captainRating,
+                      onTap:      _showCaptainInfoDialog,
                     ),
 
                   if (pickupAddr.isNotEmpty) ...[
@@ -767,4 +786,184 @@ class _AddRow extends StatelessWidget {
       Text(addr, style: const TextStyle(fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
     ])),
   ]);
+}
+
+// ─── Captain Info Card ────────────────────────────────────────────────────────
+/// Displayed in the bottom sheet as soon as the captain accepts the ride.
+/// Shows: photo, name, stars rating, car model + colour + plate number,
+/// and a large tappable phone button to call directly.
+class _CaptainInfoCard extends StatelessWidget {
+  final String  name;
+  final String? photoUrl;
+  final String? phone;
+  final String? carModel;
+  final String? carColor;
+  final String? plateNumber;
+  final double  rating;
+  final VoidCallback? onTap;
+
+  const _CaptainInfoCard({
+    required this.name,
+    this.photoUrl,
+    this.phone,
+    this.carModel,
+    this.carColor,
+    this.plateNumber,
+    this.rating = 0,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F7F7),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEEEEEE)),
+        ),
+        child: Row(
+          children: [
+            // ── Avatar ────────────────────────────────────────────
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl!) : null,
+                  onBackgroundImageError: photoUrl != null ? (_, __) {} : null,
+                  backgroundColor: const Color(0xFFEEEEEE),
+                  child: photoUrl == null
+                      ? const Icon(Icons.person, size: 30, color: Colors.grey)
+                      : null,
+                ),
+                // small star badge
+                Positioned(
+                  bottom: 0, right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFC107), shape: BoxShape.circle),
+                    child: const Icon(Icons.star, size: 10, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+
+            // ── Name + rating + car info ───────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (rating > 0) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        ...List.generate(5, (i) => Icon(
+                          i < rating.round() ? Icons.star : Icons.star_border,
+                          size: 14,
+                          color: Colors.amber[700],
+                        )),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12, color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  // ── Car row ──────────────────────────────────────
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_car,
+                          size: 13, color: Colors.black45),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _carLine(),
+                          style: const TextStyle(
+                            fontSize: 12, color: Colors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // ── Plate ────────────────────────────────────────
+                  if (plateNumber != null && plateNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1565C0).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: const Color(0xFF1565C0).withOpacity(0.25)),
+                      ),
+                      child: Text(
+                        plateNumber!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          color: Color(0xFF1565C0),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // ── Call button ───────────────────────────────────────
+            if (phone != null && phone!.isNotEmpty)
+              GestureDetector(
+                onTap: () => launchUrl(Uri.parse('tel:$phone')),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.35),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.phone, color: Colors.white, size: 22),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _carLine() {
+    final parts = <String>[];
+    if (carModel != null && carModel!.isNotEmpty) parts.add(carModel!);
+    if (carColor != null && carColor!.isNotEmpty) parts.add(carColor!);
+    return parts.isEmpty ? '---' : parts.join(' • ');
+  }
 }
