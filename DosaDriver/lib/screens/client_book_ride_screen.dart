@@ -110,16 +110,27 @@ class _ClientBookRideScreenState extends State<ClientBookRideScreen>
     try {
       final snap = await FirebaseFirestore.instance
           .collection('rideTypePricing').get();
-      if (snap.docs.isEmpty) { if (mounted) setState(() => _rideTypePricing = defaults); return; }
-      final pricing = <String, Map<String, double>>{};
+
+      // Seed ALL four types with defaults so that ride types missing from
+      // Firestore still get valid min/max/average values.
+      final pricing = <String, Map<String, double>>{
+        for (final e in defaults.entries)
+          e.key: Map<String, double>.from(e.value),
+      };
+
       for (final d in snap.docs) {
         final data = d.data();
+        final def  = defaults[d.id] ?? {'min': 25.0, 'max': 200.0, 'average': 80.0};
+        // Accept both new names (minPrice / maxPrice / averagePrice) written
+        // by the updated Admin Dashboard AND the old names (minOffer / maxOffer
+        // / avgPrice) that may already exist in Firestore.
         pricing[d.id] = {
-          'min':     (data['minPrice']     as num?)?.toDouble() ?? 25,
-          'max':     (data['maxPrice']     as num?)?.toDouble() ?? 200,
-          'average': (data['averagePrice'] as num?)?.toDouble() ?? 80,
+          'min':     ((data['minPrice']     ?? data['minOffer']  ?? data['minFare'])  as num?)?.toDouble() ?? def['min']!,
+          'max':     ((data['maxPrice']     ?? data['maxOffer'])                      as num?)?.toDouble() ?? def['max']!,
+          'average': ((data['averagePrice'] ?? data['avgPrice'])                      as num?)?.toDouble() ?? def['average']!,
         };
       }
+
       if (mounted) setState(() => _rideTypePricing = pricing);
     } catch (_) {
       if (mounted) setState(() => _rideTypePricing = defaults);

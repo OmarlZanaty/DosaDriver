@@ -52,6 +52,11 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
   // FIX: captain location subscription leak guard
   bool _locationStarted = false;
 
+  // Route-redraw throttle: only re-request Directions API when captain has
+  // moved ≥ 150 m from the position used for the last route draw.
+  LatLng? _lastRouteOrigin;
+  static const double _routeRedrawThresholdM = 150;
+
   // Turn-by-turn directions
   List<Map<String, dynamic>> _turnSteps = [];
   bool _showTurnList = false;
@@ -98,6 +103,7 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
       if (prevStatus != _status) {
         _routeDrawn = false;
         _cameraFitted = false;
+        _lastRouteOrigin = null; // force immediate redraw at new status
       }
 
       _pickupLatLng  = _latLng(data, 'pickup');
@@ -219,6 +225,19 @@ class _CaptainRideMapScreenState extends State<CaptainRideMapScreen> {
     final dest = _status == RideStatus.started ? _dropoffLatLng : _pickupLatLng;
     if (_captainLatLng == null || dest == null) return;
     if (_routeDrawn && _status != RideStatus.started) return;
+
+    // During an active trip, only redraw the route when the captain has moved
+    // at least _routeRedrawThresholdM metres from the last route origin.
+    // This avoids a Directions API call on every GPS tick (every ~10 m).
+    if (_status == RideStatus.started && _routeDrawn && _lastRouteOrigin != null) {
+      final moved = Geolocator.distanceBetween(
+        _captainLatLng!.latitude, _captainLatLng!.longitude,
+        _lastRouteOrigin!.latitude, _lastRouteOrigin!.longitude,
+      );
+      if (moved < _routeRedrawThresholdM) return;
+    }
+
+    _lastRouteOrigin = _captainLatLng;
 
     try {
       final uri = Uri.parse(

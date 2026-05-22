@@ -155,12 +155,15 @@ class _PricingScreenState extends State<PricingScreen> {
           text: (current['perMin'] ?? '0').toString()),
       'minFare': TextEditingController(
           text: (current['minFare'] ?? '0').toString()),
-      'minOffer': TextEditingController(
-          text: (current['minOffer'] ?? '0').toString()),
-      'maxOffer': TextEditingController(
-          text: (current['maxOffer'] ?? '0').toString()),
-      'avgPrice': TextEditingController(
-          text: (current['avgPrice'] ?? current['averagePrice'] ?? '0')
+      // Use minPrice / maxPrice / averagePrice — the same field names that
+      // the client & captain apps read.  Also fall back to the old names
+      // (minOffer / maxOffer / avgPrice) so existing Firestore data is shown.
+      'minPrice': TextEditingController(
+          text: (current['minPrice'] ?? current['minOffer'] ?? '0').toString()),
+      'maxPrice': TextEditingController(
+          text: (current['maxPrice'] ?? current['maxOffer'] ?? '0').toString()),
+      'averagePrice': TextEditingController(
+          text: (current['averagePrice'] ?? current['avgPrice'] ?? '0')
               .toString()),
       'commissionPct': TextEditingController(
           text: (current['commissionPct'] ?? '10').toString()),
@@ -190,11 +193,11 @@ class _PricingScreenState extends State<PricingScreen> {
                 _dialogRow(lang.t('per_km'), fields['perKm']!),
                 _dialogRow(lang.t('per_min'), fields['perMin']!),
                 _dialogRow(lang.t('min_fare'), fields['minFare']!),
-                _dialogRow(lang.t('min_offer'), fields['minOffer']!),
+                _dialogRow(lang.t('min_offer'), fields['minPrice']!),
                 _dialogRow(
-                    lang.t('max_offer'), fields['maxOffer']!),
+                    lang.t('max_offer'), fields['maxPrice']!),
                 _dialogRow(
-                    lang.t('avg_price'), fields['avgPrice']!),
+                    lang.t('avg_price'), fields['averagePrice']!),
                 _dialogRow(lang.t('commission_pct'),
                     fields['commissionPct']!,
                     suffix: '%'),
