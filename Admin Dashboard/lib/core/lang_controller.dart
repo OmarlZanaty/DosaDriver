@@ -55,6 +55,7 @@ const Map<String, Map<String, String>> _translations = {
     'admins': 'مديرو اللوحة',
     'agencies': 'الوكلاء',
     'captain_intel': 'ذكاء الكباتن',
+    'ratings': 'التقييمات والمراجعات',
     'logout': 'تسجيل الخروج',
     // Header
     'search_hint': 'بحث بالاسم أو الهاتف أو رقم الرحلة...',
@@ -153,6 +154,7 @@ const Map<String, Map<String, String>> _translations = {
     'admins': 'Admin Users',
     'agencies': 'Agencies',
     'captain_intel': 'Captain Intelligence',
+    'ratings': 'Ratings & Reviews',
     'logout': 'Sign Out',
     // Header
     'search_hint': 'Search by name, phone, or ride ID...',

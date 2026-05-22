@@ -17,6 +17,7 @@ import 'notifications_screen.dart';
 import 'pricing_screen.dart';
 import 'reports_screen.dart';
 import 'captain_intelligence_screen.dart';
+import 'ratings_screen.dart';
 import '../features/dashboard_users/dashboard_users_screen.dart';
 import '../features/agencies/agencies_screen.dart';
 
@@ -64,6 +65,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     const _NavItem(Icons.notifications_outlined, 'notifications'),
     const _NavItem(Icons.bar_chart_outlined, 'reports'),
     const _NavItem(Icons.analytics_outlined, 'captain_intel'),
+    const _NavItem(Icons.star_half_outlined, 'ratings'),
     const _NavItem(Icons.support_agent_outlined, 'support'),
     const _NavItem(Icons.settings_outlined, 'settings'),
     if (_isSuperAdmin)
@@ -86,6 +88,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       const NotificationsScreen(),
       const ReportsScreen(),
       const CaptainIntelligenceScreen(),
+      RatingsScreen(search: search),
       SupportScreen(search: search),
       SettingsScreen(search: search),
       if (_isSuperAdmin) const DashboardUsersScreen(),
@@ -194,10 +197,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                   const SizedBox(height: 6),
                   if (_sidebarExpanded) _sectionLabel('MANAGEMENT'),
-                  _navTile(items, 10, lang),
-                  _navTile(items, 11, lang),
-                  if (items.length > 12) _navTile(items, 12, lang),
-                  if (items.length > 13) _navTile(items, 13, lang),
+                  _navTile(items, 10, lang), // ratings
+                  _navTile(items, 11, lang), // support
+                  _navTile(items, 12, lang), // settings
+                  if (items.length > 13) _navTile(items, 13, lang), // admins
+                  if (items.length > 14) _navTile(items, 14, lang), // agencies
                 ],
               ),
             ),
