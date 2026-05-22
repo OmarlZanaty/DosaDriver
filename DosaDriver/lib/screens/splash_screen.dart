@@ -22,7 +22,16 @@ class SplashScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 55,
                 backgroundColor: Colors.white,
-                child: Icon(Icons.directions_car, size: 56, color: AppColors.primary),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.directions_car, size: 56, color: AppColors.primary),
+                  ),
+                ),
               ),
               SizedBox(height: 24),
               Text(

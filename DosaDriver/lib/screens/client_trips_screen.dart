@@ -4,6 +4,8 @@ import '../core/theme/app_colors.dart';
 import '../services/backend_api.dart';
 import '../services/client_ride_api.dart';
 import '../widgets/custom_widgets.dart';
+import 'client_trip_receipt_screen.dart';
+import 'client_help_screen.dart';
 
 class ClientTripsScreen extends StatefulWidget {
   const ClientTripsScreen({super.key});
@@ -123,6 +125,16 @@ class _ClientTripsScreenState extends State<ClientTripsScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            tooltip: 'المساعدة',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ClientHelpScreen()),
+            ),
+          ),
+        ],
       ),
       body: uid == null
           ? const Center(child: Text('يرجى تسجيل الدخول'))
@@ -208,7 +220,18 @@ class _ClientTripsScreenState extends State<ClientTripsScreen> {
         final dropAddr = (data['dropAddr'] ?? '').toString();
         final dateStr = _formatDate(data['createdAt']);
 
-        return Container(
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ClientTripReceiptScreen(
+                rideId: (data['id'] ?? data['rideId'] ?? '').toString(),
+                rideData: data,
+                fromHistory: true,
+              ),
+            ),
+          ),
+          child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
@@ -283,7 +306,7 @@ class _ClientTripsScreenState extends State<ClientTripsScreen> {
               ],
             ),
           ),
-        );
+        )); // GestureDetector + Container
       },
     );
   }

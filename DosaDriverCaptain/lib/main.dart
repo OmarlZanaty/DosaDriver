@@ -1,4 +1,5 @@
 import 'package:DosaDriver_captain/screens/captain_auth_gate.dart';
+import 'package:DosaDriver_captain/screens/captain_home_screen.dart';
 import 'package:DosaDriver_captain/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -9,6 +10,10 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 import 'core/localization/language_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+
+/// Global navigator key for notification deep linking.
+final GlobalKey<NavigatorState> captainNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +43,29 @@ Future<void> main() async {
     );
   });
 
+  // ── Deep link: app launched from terminated state ──
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    _handleCaptainNotificationTap(initialMessage.data);
+  }
+
+  // ── Deep link: app backgrounded, user taps notification ──
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _handleCaptainNotificationTap(message.data);
+  });
+
   runApp(const MyApp());
+}
+
+/// Tapping a ride-request notification → bring captain to home screen.
+/// The home screen polls open rides; it will show the new request card.
+void _handleCaptainNotificationTap(Map<String, dynamic> data) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    captainNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const CaptainHomeScreen()),
+      (r) => false,
+    );
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -64,6 +91,7 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          navigatorKey: captainNavigatorKey,
           home: const CaptainAuthGate(),
         );
       },

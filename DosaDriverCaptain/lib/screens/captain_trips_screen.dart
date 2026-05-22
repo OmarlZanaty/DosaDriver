@@ -143,7 +143,9 @@ class _CaptainTripsScreenState extends State<CaptainTripsScreen> {
         (data['dropAddr'] ?? AppStrings.destination(context)).toString();
         final tripTime = _formatTripTime(data['updatedAt']?.toString());
 
-        return Container(
+        return GestureDetector(
+          onTap: () => _showTripDetail(context, data),
+          child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.white,
@@ -212,8 +214,175 @@ class _CaptainTripsScreenState extends State<CaptainTripsScreen> {
               ),
             ],
           ),
-        );
+        )); // GestureDetector + Container
       },
+    );
+  }
+
+  void _showTripDetail(BuildContext context, Map<String, dynamic> data) {
+    final statusRaw = (data['status'] ?? '').toString();
+    final st = _parseRideStatus(statusRaw);
+    final isCompleted = st == RideStatus.completed;
+    final rawAmount = data['finalFare'] ?? data['suggestedFare'] ?? 0;
+    final amount = rawAmount is num ? rawAmount.toDouble() : double.tryParse('$rawAmount') ?? 0;
+    final pickup = (data['pickupAddr'] ?? '—').toString();
+    final drop = (data['dropAddr'] ?? '—').toString();
+    final clientName = (data['clientName'] ?? data['userName'] ?? '—').toString();
+    final distanceKm = ((data['distanceKm'] ?? 0) as num).toDouble();
+    final durationMin = ((data['durationMin'] ?? 0) as num).toDouble();
+    final payMethod = (data['paymentMethod'] ?? 'CASH').toString().toUpperCase();
+    final payLabel = payMethod == 'CASH' ? 'نقدي' : payMethod == 'INSTAPAY' ? 'InstaPay' : payMethod == 'VODAFONE_CASH' ? 'فودافون كاش' : payMethod;
+    final tripTime = _formatTripTime(data['updatedAt']?.toString());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.85,
+        builder: (_, ctrl) => SingleChildScrollView(
+          controller: ctrl,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(children: [
+                Icon(
+                  isCompleted ? Icons.check_circle : Icons.cancel,
+                  color: isCompleted ? AppColors.success : AppColors.error,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isCompleted ? 'رحلة مكتملة' : 'رحلة ملغاة',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                ),
+                const Spacer(),
+                Text(tripTime,
+                  style: const TextStyle(color: AppColors.mediumGray, fontSize: 12)),
+              ]),
+              const SizedBox(height: 16),
+
+              // Fare
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('الأجرة', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text('${amount.toStringAsFixed(2)} ج',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Route
+              _DetailRow(icon: Icons.circle, iconColor: AppColors.success, label: 'من', value: pickup),
+              const SizedBox(height: 8),
+              _DetailRow(icon: Icons.location_on, iconColor: AppColors.primary, label: 'إلى', value: drop),
+              const SizedBox(height: 14),
+              const Divider(),
+              const SizedBox(height: 6),
+
+              // Stats grid
+              Row(children: [
+                _MiniStat('العميل', clientName, Icons.person_outline),
+                const SizedBox(width: 10),
+                _MiniStat('المسافة', '${distanceKm.toStringAsFixed(1)} كم', Icons.straighten_rounded),
+                const SizedBox(width: 10),
+                _MiniStat('المدة', '${durationMin.toStringAsFixed(0)} د', Icons.timer_outlined),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                _MiniStat('الدفع', payLabel, Icons.payments_outlined),
+                const SizedBox(width: 10),
+                _MiniStat('الرحلة #', (data['id'] ?? '—').toString(), Icons.receipt_long_outlined),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  const _DetailRow({required this.icon, required this.iconColor, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, color: iconColor, size: 14),
+      const SizedBox(width: 8),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: AppColors.mediumGray, fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        SizedBox(
+          width: 280,
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+        ),
+      ]),
+    ]);
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  const _MiniStat(this.label, this.value, this.icon);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.lightGray,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(height: 4),
+          Text(value,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(label,
+            style: const TextStyle(color: AppColors.mediumGray, fontSize: 10),
+            textAlign: TextAlign.center,
+          ),
+        ]),
+      ),
     );
   }
 }

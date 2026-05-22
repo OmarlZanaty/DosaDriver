@@ -23,6 +23,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   GoogleMapController? _mapController;
   LatLng _center = const LatLng(30.0444, 31.2357);
   LatLng? _myLocation;
+  bool _locationInitialized = false;
+  bool _locationDenied = false;   // shown after user denies permission
+  bool _locationPermanentlyDenied = false;
   int _currentIndex = 0;
   final _rideApi = ClientRideApi(BackendApi());
 
@@ -44,16 +47,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   Future<void> _initLocation() async {
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever) {
+        if (mounted) setState(() { _locationDenied = true; _locationPermanentlyDenied = true; });
+        return;
+      }
+      if (perm == LocationPermission.denied) {
+        if (mounted) setState(() => _locationDenied = true);
+        return;
+      }
 
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       if (!mounted) return;
+      final loc = LatLng(pos.latitude, pos.longitude);
       setState(() {
-        _myLocation = LatLng(pos.latitude, pos.longitude);
-        _center = _myLocation!;
+        _myLocation = loc;
+        _center = loc;
+        _locationInitialized = true;
+        _locationDenied = false;
+        _locationPermanentlyDenied = false;
       });
-      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_center, 15));
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(loc, 15));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,12 +121,74 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   Widget _buildHomeTab() {
     return Stack(children: [
+      // ── Location permission denied banner ──
+      if (_locationDenied)
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.warning),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_off_outlined, color: AppColors.warning),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _locationPermanentlyDenied
+                          ? 'الموقع محظور نهائيًا. افتح إعدادات التطبيق للسماح به.'
+                          : 'يحتاج التطبيق إذن الوصول للموقع لعرض رحلات قريبة منك.',
+                      style: const TextStyle(fontSize: 12, color: AppColors.darkGray),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      if (_locationPermanentlyDenied) {
+                        await Geolocator.openAppSettings();
+                      } else {
+                        await _initLocation();
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _locationPermanentlyDenied ? 'الإعدادات' : 'السماح',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
       GoogleMap(
         initialCameraPosition: CameraPosition(target: _center, zoom: 14),
         myLocationEnabled: true, myLocationButtonEnabled: false, zoomControlsEnabled: false,
         onMapCreated: (c) {
           _mapController = c;
           if (_myLocation != null) c.animateCamera(CameraUpdate.newLatLngZoom(_myLocation!, 15));
+        },
+        onCameraMove: (pos) {
+          if (!_locationInitialized) {
+            _center = pos.target;
+          }
         },
       ),
 

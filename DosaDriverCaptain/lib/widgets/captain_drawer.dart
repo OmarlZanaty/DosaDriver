@@ -6,6 +6,7 @@ import '../screens/captain_home_screen.dart';
 import '../screens/captain_earnings_screen.dart';
 import '../screens/captain_trips_screen.dart';
 import '../screens/captain_profile_screen.dart';
+import '../screens/captain_help_screen.dart';
 import '../screens/splash_screen.dart';
 import '../services/auth_service.dart';
 
@@ -91,11 +92,8 @@ class CaptainDrawer extends StatelessWidget {
                       label: 'المساعدة',
                       onTap: () {
                         Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('للتواصل مع الدعم: support@dosadriver.com'),
-                          ),
-                        );
+                        Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const CaptainHelpScreen()));
                       },
                     ),
                     const Padding(

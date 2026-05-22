@@ -4,6 +4,7 @@ import '../services/backend_api.dart';
 import '../services/client_ride_api.dart';
 import '../widgets/custom_widgets.dart';
 import 'client_home_screen.dart';
+import 'client_trip_receipt_screen.dart';
 
 class ClientRateRideScreen extends StatefulWidget {
   final String rideId;
@@ -221,6 +222,36 @@ class _ClientRateRideScreenState extends State<ClientRateRideScreen> {
               ),
 
               const SizedBox(height: 28),
+
+              // ── View Receipt ──
+              OutlinedButton.icon(
+                icon: const Icon(Icons.receipt_long_outlined,
+                    color: AppColors.primary),
+                label: const Text(
+                  'عرض الإيصال التفصيلي',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ClientTripReceiptScreen(
+                        rideId: widget.rideId,
+                        rideData: widget.rideData,
+                        fromHistory: false,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 12),
 
               PrimaryButton(
                 text: 'إرسال التقييم',

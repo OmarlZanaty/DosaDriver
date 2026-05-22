@@ -5,6 +5,7 @@ import '../core/theme/app_colors.dart';
 import '../core/localization/language_controller.dart';
 import '../services/auth_service.dart';
 import 'client_signin_screen.dart';
+import 'client_help_screen.dart';
 
 class ClientProfileScreen extends StatefulWidget {
   const ClientProfileScreen({super.key});
@@ -88,6 +89,15 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          if (!_editMode)
+            IconButton(
+              icon: const Icon(Icons.help_outline, color: Colors.white),
+              tooltip: 'المساعدة',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ClientHelpScreen()),
+              ),
+            ),
           if (!_editMode)
             IconButton(
               icon: const Icon(Icons.edit, color: Colors.white),
